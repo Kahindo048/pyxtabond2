@@ -3,6 +3,7 @@
 `pyxtabond2` is a comprehensive Python package for estimating dynamic panel data models using the Generalized Method of Moments (GMM). It aims to faithfully replicate the functionality, matrix algebra, and robust diagnostics of Stata's highly popular `xtabond2` command developed by David Roodman.
 
 Ideal for applied econometrics and macroeconomic research, this package bridges the gap between Python's data science ecosystem and advanced dynamic panel methodologies.
+
 ---
 ## 🌟 Key Features
 
@@ -14,6 +15,7 @@ Ideal for applied econometrics and macroeconomic research, this package bridges 
 * **Instrument Collapsing:** Prevents instrument proliferation and the weakening of overidentification tests.
 * **Comprehensive Diagnostics:** Arellano-Bond AR(1)/AR(2) tests, Sargan/Hansen J-tests, and Difference-in-Hansen tests for instrument exogeneity.
 * **Direct Export:** Export publication-ready tables directly to LaTeX or Microsoft Word.
+
 ---
 ## 📦 Installation
 
@@ -86,6 +88,7 @@ Roodman, D. (2009). How to do xtabond2: An introduction to difference and system
 Bai, J., & Ng, S. (2002). Determining the number of factors in approximate factor models. Econometrica.
 
 Ahn, S. C., & Horenstein, A. R. (2013). Eigenvalue ratio test for the number of factors. Econometrica.
+
 ---
 🤝 Contributing
 Contributions, issues, and feature requests are welcome! Feel free to check the issues page on the GitHub repository.
