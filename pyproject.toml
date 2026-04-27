@@ -30,8 +30,11 @@ dependencies = [
 word = ["python-docx>=0.8.11"] 
 
 [project.urls]
-"Homepage" = "[https://github.com/Kahindo048/pyxtabond2](https://github.com/Kahindo048/pyxtabond2)"
-"Bug Tracker" = "[https://github.com/Kahindo048/pyxtabond2/issues](https://github.com/Kahindo048/pyxtabond2/issues)"
+"Homepage" = "https://github.com/Kahindo048/pyxtabond2"
+"Bug Tracker" = "https://github.com/Kahindo048/pyxtabond2/issues"
+
+[tool.setuptools]
+license-files = []
 
 [tool.setuptools.package-data]
 "pyxtabond2.datasets" = ["*.csv", "*.dta", "*.xlsx"]

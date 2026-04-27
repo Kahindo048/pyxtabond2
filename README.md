@@ -3,7 +3,7 @@
 `pyxtabond2` is a comprehensive Python package for estimating dynamic panel data models using the Generalized Method of Moments (GMM). It aims to faithfully replicate the functionality, matrix algebra, and robust diagnostics of Stata's highly popular `xtabond2` command developed by David Roodman.
 
 Ideal for applied econometrics and macroeconomic research, this package bridges the gap between Python's data science ecosystem and advanced dynamic panel methodologies.
-
+---
 ## 🌟 Key Features
 
 * **Difference GMM (Arellano-Bond 1991):** Standard first-differenced GMM estimation.
@@ -14,17 +14,20 @@ Ideal for applied econometrics and macroeconomic research, this package bridges 
 * **Instrument Collapsing:** Prevents instrument proliferation and the weakening of overidentification tests.
 * **Comprehensive Diagnostics:** Arellano-Bond AR(1)/AR(2) tests, Sargan/Hansen J-tests, and Difference-in-Hansen tests for instrument exogeneity.
 * **Direct Export:** Export publication-ready tables directly to LaTeX or Microsoft Word.
-
+---
 ## 📦 Installation
 
 You can install `pyxtabond2` directly from PyPI using pip:
 
+📦 Installation
+```bash
+pip install pyxtabond2
+```
+---
 🚀 Quick Start
 pyxtabond2 comes with integrated example datasets so you can start experimenting immediately.
 
-```bash
-pip install pyxtabond2
-
+```python
 from pyxtabond2.data_utils import PanelData
 from pyxtabond2.api import PyXtabond2
 from pyxtabond2.load_data import load_dataset
@@ -65,8 +68,8 @@ result.summary()
 # 4. Export results for publication
 result.to_latex("gmm_results.tex", full_output=False)
 result.to_word("gmm_results.docx", full_output=False)
-
 ```
+---
 📖 References & Methodology
 This package implements the algorithms and corrections outlined in the following seminal papers:
 
@@ -83,6 +86,6 @@ Roodman, D. (2009). How to do xtabond2: An introduction to difference and system
 Bai, J., & Ng, S. (2002). Determining the number of factors in approximate factor models. Econometrica.
 
 Ahn, S. C., & Horenstein, A. R. (2013). Eigenvalue ratio test for the number of factors. Econometrica.
-
+---
 🤝 Contributing
 Contributions, issues, and feature requests are welcome! Feel free to check the issues page on the GitHub repository.
