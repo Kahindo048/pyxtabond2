@@ -19,55 +19,52 @@ Ideal for applied econometrics and macroeconomic research, this package bridges 
 
 You can install `pyxtabond2` directly from PyPI using pip:
 
-```bash
-pip install pyxtabond2
-
 🚀 Quick Start
 pyxtabond2 comes with integrated example datasets so you can start experimenting immediately.
 
-import pandas as pd
-import pyxtabond2
+```bash
+pip install pyxtabond2
 
-# 1. Load the integrated example data
-# Use pyxtabond2.list_datasets() to see all available integrated datasets
-df = pyxtabond2.load_dataset('macro_panel.csv')
+from pyxtabond2.data_utils import PanelData
+from pyxtabond2.api import PyXtabond2
+from pyxtabond2.load_data import load_dataset
 
-# 2. Estimate a basic Difference GMM model
-model_diff = pyxtabond2.PyXtabond2(
-    df=df, 
-    id_col='country_id', time_col='year', dep_var='gdp_growth', 
-    x_vars=['inflation', 'fdi'], 
-    gmm_vars=['gdp_growth', 'inflation'], 
-    iv_vars=['fdi'],
-    model_type='difference', 
-    twostep=False
-)
-res_diff = model_diff.fit()
-res_diff.summary()
+# 1. Loading the data
+# Make sure the df_panel.xlsx file is in the same folder
+try:
+    df = load_dataset('df_panel.xlsx')
+    print(f"Data loaded successfully: {df.shape[0]} observations.")
+except FileNotFoundError:
+    print("Error: The file 'df_panel.xlsx' could not be found.")
 
-# 3. Estimate an advanced System GMM model with Interactive Fixed Effects
-model_sys = pyxtabond2.PyXtabond2(
-    df=df, 
-    id_col='country_id', time_col='year', dep_var='gdp_growth', 
-    x_vars=['inflation', 'fdi'], 
-    gmm_vars=['gdp_growth', 'inflation'], 
-    iv_vars=['fdi'],
-    model_type='system',
-    twostep=True,      # Two-step estimation
-    robust=True,       # Windmeijer correction
-    small=True,        # Small sample adjustments
-    collapse=True,     # Prevent instrument proliferation
-    orthogonal=True,   # Forward Orthogonal Deviations (FOD)
-    r='auto'           # Auto-detect interactive fixed effects (PCA-GMM)
-)
-res_sys = model_sys.fit()
+# Data preparation
+panel = PanelData(df, id_col='Country', time_col='Year')
+panel.data['L1_Growth'] = panel.get_lag('Growth', 1)
+df_ready = panel.data.reset_index()
 
-# Print the detailed Stata-style summary to the console
-res_sys.summary()
+id_col = 'Country'          # Group identifier (country, firm)
+time_col = 'Year'           # Time identifier
+dep_var = 'Growth'          # Dependent variable
+x_vars = ['Capital', 'Labor', 'Wage', 'Investment', 'Ide'] # Explanatory variables
+gmm_vars = ['Growth', 'Capital'] # Variables for Arellano-Bond instruments
+iv_vars = ['Ide']           # Variables for standard instruments
+
+modele = PyXtabond2(df_ready, 
+                    id_col = 'Country', 
+                    time_col = 'Year', 
+                    dep_var = 'Growth', 
+                    x_vars = ['L1_Growth', 'Capital', 'Labor', 'Wage', 'Investment', 'Ide'], 
+                    gmm_vars =['Growth', 'Capital'], 
+                    iv_vars = ['Ide'],
+                    model_type='difference',
+                    twostep=False)
+
+result = modele.fit()
+result.summary()
 
 # 4. Export results for publication
-res_sys.to_latex("gmm_results.tex", full_output=False)
-res_sys.to_word("gmm_results.docx", full_output=False)
+result.to_latex("gmm_results.tex", full_output=False)
+result.to_word("gmm_results.docx", full_output=False)
 
 ```
 📖 References & Methodology
