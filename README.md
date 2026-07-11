@@ -82,10 +82,6 @@ See `examples/examples.py` for a full workflow with four specifications and comp
 
 Weights (`pweight`/`aweight`/`fweight`) and Stata's multi-way `cluster(var1 var2)` are not implemented; a few narrow numerical edge cases (documented in the Methodological Note) can diverge from Stata. See the User Manual's "Known Limitations" section for the complete, current list.
 
-```bash
-pytest tests/
-```
-
 ---
 ## 📖 References & Methodology
 
