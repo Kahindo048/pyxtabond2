@@ -1,0 +1,904 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{natbib}
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black,
+  bookmarksopen=true
+}
+
+\lstdefinestyle{pystyle}{
+  language=Python,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue!70!black}\bfseries,
+  commentstyle=\color{gray!70!black}\itshape,
+  stringstyle=\color{green!35!black},
+  showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=flexible,
+  frame=single,
+  rulecolor=\color{black!30},
+  numbers=none,
+  tabsize=4,
+  xleftmargin=0.5em,
+  xrightmargin=0.5em
+}
+\lstset{style=pystyle}
+
+\newcommand{\pkg}{\texttt{pyxtabond2}}
+\newcommand{\note}[1]{\par\medskip\noindent\fbox{\begin{minipage}{0.96\linewidth}\small\textbf{Note.} #1\end{minipage}}\medskip}
+\newcommand{\warn}[1]{\par\medskip\noindent\fbox{\begin{minipage}{0.96\linewidth}\small\textbf{Caution.} #1\end{minipage}}\medskip}
+\newcommand{\bigO}{O}
+
+\title{\textbf{PyXtabond2 Methodological Note}\\[0.4em]\Large GMM Theory, the IFE-GMM Extension, and Validation Against Stata's \texttt{xtabond2}}
+\author{Frederick Kahindo}
+\date{Version 0.4.1\\ \today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent This note provides the full econometric derivation underlying
+\pkg{}, together with a complete, primary-source-grounded account of its
+validation. Section~\ref{sec:gmm} derives the standard dynamic panel GMM
+estimator (Difference and System GMM), its one- and two-step weighting
+matrices, the \citet{Windmeijer2005} finite-sample variance correction, and
+the small-sample degrees-of-freedom corrections, each tied explicitly to the
+corresponding construction in Stata's \texttt{xtabond2.mata}
+\citep{Roodman2009a}. Section~\ref{sec:diag} derives the Sargan/Hansen,
+Difference-in-Sargan/Hansen, and Arellano-Bond AR($\ell$) test statistics.
+Section~\ref{sec:ife} derives \emph{IFE-GMM}, an original extension not
+present in \texttt{xtabond2}: an iterative, PCA-based estimator for dynamic
+panels contaminated by interactive fixed effects \citep{Bai2009}, combining
+automatic factor-count selection \citep{BaiNg2002, AhnHorenstein2013}, a
+profile-GMM defactoring loop \citep{HongSuJiang2022}, and a split-panel
+jackknife bias correction \citep{DhaeneJochmans2015}. Section~\ref{sec:val} reports, in full, the findings of two validation
+passes conducted against \texttt{xtabond2.mata} and a real Stata run,
+alongside every confirmed-correct result and every documented, unresolved
+limitation.
+\end{abstract}
+
+\newpage
+\tableofcontents
+
+\newpage
+\section{Introduction}
+
+\subsection{Scope}
+
+The companion \emph{User Manual} documents every \pkg{} option practically:
+what it does, its Stata equivalent, and how to use it. This note instead
+derives \emph{why} each computation is what it is, at the level of detail
+needed to audit the implementation against its econometric sources. It is
+organized in three parts: (i) the standard dynamic panel GMM machinery
+(Sections~\ref{sec:gmm}--\ref{sec:diag}), present in Stata's \texttt{xtabond2}
+and reproduced by \pkg{}; (ii) IFE-GMM (Section~\ref{sec:ife}), the package's
+original extension, absent from \texttt{xtabond2}; and (iii) a full
+validation account (Sections~\ref{sec:val}--\ref{sec:limitations}) --
+confirmed-correct results and unresolved limitations documented rather than
+silently assumed away.
+
+\subsection{Notation}
+
+$i=1,\dots,N$ indexes cross-sectional units, $t=1,\dots,T$ time periods.
+$y_{it}$ is the dependent variable, $x_{it}$ a $p\times1$ vector of
+regressors (possibly including precomputed lags of $y$), $\beta$ the
+$p\times1$ coefficient vector, $\eta_i$ an unobserved time-invariant effect,
+$\varepsilon_{it}$ an idiosyncratic shock. $\Delta$ denotes the first-difference
+operator, $Z_i$ the instrument matrix for unit $i$ (stacked across units as
+$Z$), $W$ a GMM weighting matrix. $H$ denotes a GLS-type covariance-structure
+matrix (Stata's \texttt{h()}). For IFE-GMM, $\lambda_i$ ($r\times1$) is a
+factor-loading vector, $F_t$ ($r\times1$) a common-factor vector, with
+$\Lambda=(\lambda_1,\dots,\lambda_N)'$ ($N\times r$) and
+$F=(F_1,\dots,F_T)'$ ($T\times r$).
+
+\section{The Standard Dynamic Panel GMM Estimator}
+\label{sec:gmm}
+
+\subsection{The problem: fixed effects in a dynamic panel}
+
+Consider the workhorse dynamic panel model
+\begin{equation}
+y_{it} = \rho\, y_{i,t-1} + x_{it}'\beta + \eta_i + \varepsilon_{it}. \label{eq:model}
+\end{equation}
+Because $y_{i,t-1}$ is a function of $\eta_i$, pooled OLS on
+\eqref{eq:model} is inconsistent, and the within/LSDV (fixed-effects)
+estimator that removes $\eta_i$ by demeaning is itself inconsistent for
+fixed $T$ as $N\to\infty$: demeaning induces a correlation of order
+$\bigO(1/T)$ between the demeaned lag and the demeaned error that does not
+vanish as $N$ grows \citep{Nickell1981}. Two transformations remove $\eta_i$
+\emph{without} this problem, provided instruments are used for the
+resulting correlation between the transformed regressor and the transformed
+error:
+
+\begin{description}[nosep]
+  \item[First differences] $\Delta y_{it} = \rho\,\Delta y_{i,t-1} +
+    \Delta x_{it}'\beta + \Delta\varepsilon_{it}$, $t=2,\dots,T$.
+  \item[Forward orthogonal deviations (FOD)] \citep{ArellanoBover1995}
+    \[
+      y_{it}^{\mathrm{FOD}} = c_{it}\left(y_{it} - \frac{1}{T_{it}^{+}}\sum_{s>t} y_{is}\right),
+      \qquad c_{it} = \sqrt{\frac{T_{it}^{+}}{T_{it}^{+}+1}},
+    \]
+    where $T_{it}^{+}$ is the number of available future observations for
+    unit $i$ at $t$. Unlike differencing, FOD only uses \emph{future}
+    observations, so a single missing period does not additionally destroy
+    the transformed values of neighbouring periods -- the reason it is
+    preferred for unbalanced panels with gaps. This is exactly
+    \texttt{PanelData.get\_fod}'s construction
+    (\texttt{data\_utils.py::\_fod\_group\_vectorized}).
+\end{description}
+
+Both transformations still leave $\Delta y_{i,t-1}$ (or its FOD analogue)
+correlated with the transformed error, since $y_{i,t-1}$ is correlated with
+$\varepsilon_{i,t-1}$, which enters $\Delta\varepsilon_{it}$. This motivates
+instrumenting rather than direct estimation.
+
+\subsection{Moment conditions and the instrument matrix}
+\label{sec:moments}
+
+Under sequential exogeneity/predeterminedness, $E[y_{is}\varepsilon_{it}]=0$
+for $s<t$ (more generally, for any GMM-style variable in \texttt{gmm\_vars}),
+so that
+\[
+  E\!\left[y_{i,t-2}\,\Delta\varepsilon_{it}\right] = 0,\quad
+  E\!\left[y_{i,t-3}\,\Delta\varepsilon_{it}\right] = 0,\ \dots
+\]
+for $t=2,\dots,T$: each time period's differenced error is orthogonal to
+\emph{every} level of the instrumenting variable lagged two or more periods.
+This yields the classic Arellano-Bond "staircase" instrument matrix, one row
+block per unit \citep[matching][their notation, adapted]{Windmeijer2005}:
+\[
+  Z_i = \begin{bmatrix}
+    y_{i1} & 0 & 0 & 0 & 0 & 0\\
+    0 & y_{i1} & y_{i2} & 0 & 0 & 0\\
+    & & \ddots & & &\\
+    0 & 0 & 0 & y_{i1} & \dots & y_{i,T-1}
+  \end{bmatrix},
+\]
+with $T(T-1)/2$ instrument columns for a single GMM-style variable when every
+lag from 1 is admissible -- the maximal case, appropriate for a
+\emph{predetermined} variable (uncorrelated with future, but not
+necessarily contemporaneous, errors). \pkg{}'s own default
+(\texttt{lag=(2, None)}) instead starts at lag 2, the safer assumption for a
+genuinely \emph{endogenous} variable such as the lagged dependent variable
+itself, and yields $(T-2)(T-1)/2$ columns; the construction below is
+identical either way, only the lag window differs. This is exactly what
+\texttt{SystemGMMBuilder.\_fill\_block\_a\_standard}
+(\texttt{gmm\_builder.py}) constructs: one column per (time period, lag)
+pair, subject to the chosen lag window. Two generalizations \pkg{}
+implements on top of this baseline (both mirroring \texttt{xtabond2}):
+
+\begin{itemize}[nosep]
+  \item \textbf{Lag windows} (\texttt{lag\_limits\_diff}/\texttt{GMMStyle.lag}):
+    restricting to lags $\ell\in[l_{\min},l_{\max}]$ instead of "2 to
+    maximum", reducing instrument count and often improving the Sargan/Hansen
+    test's power \citep{Roodman2009b}.
+  \item \textbf{Collapsing} (\texttt{collapse}/\texttt{GMMStyle.collapse}):
+    summing across time periods within each lag distance, so a variable
+    contributes $l_{\max}-l_{\min}+1$ columns instead of $\bigO(T^2)$.
+    This is the single most effective lever against \emph{instrument
+    proliferation}: with too many instruments relative to $N$, GMM can
+    overfit the endogenous variable in finite samples and the Sargan/Hansen
+    overidentification test loses power to detect genuine misspecification
+    \citep{Roodman2009b} -- a suspiciously perfect Hansen $p$-value is a
+    symptom of this, not reassurance.
+\end{itemize}
+
+\subsection{System GMM: adding the levels equation}
+\label{sec:system}
+
+Difference GMM performs poorly when $y_{it}$ is highly persistent: lagged
+levels are then weak instruments for the differenced equation
+\citep{BlundellBond1998}. Blundell-Bond/Arellano-Bover System GMM adds the
+\emph{levels} equation
+\[
+  y_{it} = \rho\, y_{i,t-1} + x_{it}'\beta + \eta_i + \varepsilon_{it}
+\]
+instrumented by \emph{lagged differences} of the GMM-style variable, valid
+under the additional "mean stationarity" assumption
+$E[\Delta y_{i2}\,\eta_i]=0$ (initial deviations from the long-run mean are
+uncorrelated with the fixed effect). \texttt{SystemGMMBuilder.build\_system\_instruments}
+builds, per GMM-style variable and per unit, a $2T\times n_{\text{cols}}$
+block:
+\begin{itemize}[nosep]
+  \item Rows $1,\dots,T$ (\emph{differenced}-equation instruments): entry
+    $(t,\cdot)=y_{i,t-\ell}$ for each admissible lag $\ell$ -- Section~\ref{sec:moments}'s block.
+  \item Rows $T+1,\dots,2T$ (\emph{levels}-equation instruments): entry
+    $(T+t,\cdot)=\Delta y_{i,t-d}$, $d=l_{\min}-1$. In the standard
+    (non-collapsed) style this is $T-1$ \emph{time-specific} columns, each
+    isolating $\Delta y_{i,t-d}$ at exactly period $t$ and zero elsewhere
+    (\texttt{\_fill\_block\_b\_standard}); collapsing sums these into a
+    single shared column (\texttt{\_fill\_block\_b\_collapse}), the levels-equation
+    analogue of collapsing the differenced block.
+\end{itemize}
+The two blocks are stacked, giving $Z_i$ a genuine $2T\times n_{\text{cols}}$
+shape even though a single unit contributes at most $2T-2$ real (non-missing)
+rows -- unused rows/instruments are naturally zeroed and, for instrument
+columns that are identically zero across the whole sample, dropped
+(\texttt{GMMEngine.\_\_init\_\_}'s \texttt{non\_zero\_cols} filter). Standard
+IV instruments (\texttt{iv\_vars}/\texttt{IVStyle}, for strictly exogenous
+variables) are appended analogously via \texttt{build\_iv\_instruments}: a
+variable is used as its own instrument in the differenced and/or levels
+equation, and -- following \texttt{xtabond2}'s convention exactly --
+appears as a \emph{single} instrument column combining both equations
+whenever it instruments both, rather than as two separate columns.
+
+\subsection{One-step and two-step GMM}
+\label{sec:onetwostep}
+
+Stacking $Y$, $X$, $Z$ across all units and (for System GMM) both equations,
+the GMM estimator for a weighting matrix $W$ is
+\begin{equation}
+  \hat\beta(W) = \left(X'ZWZ'X\right)^{-1}X'ZWZ'Y, \label{eq:gmmest}
+\end{equation}
+the sample analogue of minimizing the quadratic form
+$\left(\frac1N\sum_i Z_i'\hat\varepsilon_i\right)'W\left(\frac1N\sum_i
+Z_i'\hat\varepsilon_i\right)$ over $\beta$ \citep{Hansen1982}. \textbf{One-step}
+GMM ($\hat\beta_1$) uses a weight matrix $W_1$ that does \emph{not} depend on
+estimated parameters -- $W_1 = \left(\sum_g Z_g'HZ_g\right)^{-1}$ for a fixed
+$H$ (Section~\ref{sec:hmatrix}); \texttt{GMMEngine.\_compute\_W1} builds
+exactly this sum, group by group. \textbf{Two-step} GMM ($\hat\beta_2$) uses
+the efficient weight matrix built from the one-step residuals,
+\begin{equation}
+  W_2 = \left(\sum_g Z_g'\hat\varepsilon_{1,g}\hat\varepsilon_{1,g}'Z_g\right)^{-1}
+      = S_2^{-1}, \label{eq:w2}
+\end{equation}
+computed via the identity $Z_g'ee'Z_g=(Z_g'e)(Z_g'e)'$ for efficiency
+(\texttt{\_accumulate\_ZeZe}). $W_2$ is consistent for the inverse of the
+true moment covariance under heteroskedasticity/serial correlation of
+unrestricted form -- this is what makes two-step GMM asymptotically
+efficient, and also what makes its \emph{naive} standard errors unreliable
+in finite samples (Section~\ref{sec:windmeijer}).
+
+\subsection{The \texttt{h()} weighting-matrix family}
+\label{sec:hmatrix}
+
+$W_1$'s $H$ matrix models $\mathrm{Cov}(\Delta\varepsilon_{it},\Delta\varepsilon_{is})$
+under the auxiliary assumption that $\varepsilon_{it}$ is i.i.d.\ (a
+reasonable working assumption for constructing an efficient \emph{one-step}
+weight, later made robust to violations at the two-step/robust stage).
+Since $\Delta\varepsilon_{it}=\varepsilon_{it}-\varepsilon_{i,t-1}$,
+\[
+  \mathrm{Cov}(\Delta\varepsilon_{it},\Delta\varepsilon_{is}) =
+  \begin{cases} 2\sigma^2 & s=t\\ -\sigma^2 & |s-t|=1\\ 0 & |s-t|\ge2,\end{cases}
+\]
+giving a tridiagonal $H$ with 2 on the diagonal and $-1$ on the first
+off-diagonals. This is exactly \texttt{\_build\_H\_diff\_block}'s
+construction -- matching the matrix Windmeijer's own paper describes for the
+differenced-equation weight ("2's
+on the main diagonal, $-1$'s on the first off-diagonals"). Stata's
+\texttt{h()} option (\texttt{h}, default 3) selects among three variants,
+generalized in \pkg{} by \texttt{\_build\_H(h, T\_span, orthogonal)}:
+
+\begin{description}[nosep]
+  \item[\texttt{h=1}] $H=I$: assumes no serial-correlation structure at all
+    in the transformed error, i.e.\ does not model the covariance induced by
+    differencing/FOD itself. Rarely appropriate, but available for
+    comparability with software that defaults to it.
+  \item[\texttt{h=2}] The tridiagonal $H$ above for the differenced block;
+    for System GMM, the cross-covariance between the differenced and levels
+    blocks is assumed zero (block-diagonal $H$).
+  \item[\texttt{h=3}] (Stata's default) As \texttt{h=2}, but additionally
+    models the \emph{true} cross-covariance between the differenced and
+    levels equations. Since
+    $\mathrm{Cov}(\Delta\varepsilon_{it},\varepsilon_{is})=\sigma^2$ if
+    $s=t$ and $-\sigma^2$ if $s=t-1$ (zero otherwise), the cross-block has
+    $+1$ on its main diagonal and $-1$ on one off-diagonal -- exactly
+    \texttt{\_build\_H\_full\_system}'s
+    \texttt{H\_full[i,T\_span+i]=1.0} / \texttt{H\_full[i2+1,T\_span+i2]=-1.0}
+    assignments.
+\end{description}
+\texttt{h=2} and \texttt{h=3} coincide for pure Difference GMM (no levels
+block exists to model a cross-covariance with). The FOD case uses an
+analogous but distinct construction (\texttt{\_xform\_matrix}), reflecting
+FOD's own weights rather than the simple differencing weights, and not
+reproduced in full here.
+
+\subsection{Standard errors and the Windmeijer (2005) correction}
+\label{sec:windmeijer}
+
+\subsubsection{One-step}
+
+Non-robust one-step variance is $V_1=(X'ZW_1Z'X)^{-1}$, scaled by an
+estimated error variance $\hat\sigma^2$ computed from the \emph{same}
+equation $H$ models (Section~\ref{sec:sig2} details exactly which residuals
+enter $\hat\sigma^2$ and why this depends on \texttt{h}). Robust one-step
+variance uses the sandwich
+\[
+  V_{1,\mathrm{rob}} = V_1\left(X'ZW_1\right)S_2\left(W_1Z'X\right)V_1,
+\]
+with $S_2$ as in \eqref{eq:w2} -- \texttt{estimator.py}'s one-step-robust
+branch. Additionally, when \texttt{robust=True} with one-step estimation,
+\pkg{} replicates \texttt{xtabond2}'s "Roodman's trick": a silent two-step
+refit computed \emph{only} to obtain a valid Hansen statistic (the
+non-robust Sargan statistic is otherwise the only overidentification test
+available at one-step), without altering the reported one-step
+$\hat\beta$/se.
+
+\subsubsection{Two-step: why naive standard errors are wrong}
+
+$W_2$ in \eqref{eq:w2} is itself a function of $\hat\beta_1$ (through
+$\hat\varepsilon_1$). The naive two-step variance
+$V_2=(X'ZW_2Z'X)^{-1}$ treats $W_2$ as if it were the \emph{true,
+non-stochastic} $W$, ignoring the extra sampling variability it inherits
+from $\hat\beta_1$. \citet{Windmeijer2005} shows this omission is the
+dominant source of the well-documented downward bias of two-step GMM
+standard errors in finite samples. Writing the moment vector as
+$\bar g(\beta)=\frac1N\sum_i g_i(\beta)$ and the efficient weight as
+$W_N(\hat\beta_1)=\frac1N\sum_i g_i(\hat\beta_1)g_i(\hat\beta_1)'$, a
+first-order Taylor expansion of $\hat\beta_2$ around the truth $\beta_0$,
+\emph{additionally} expanding $\hat\beta_1$ around $\beta_0$, gives
+\citep[eq.\ 2.3--2.4]{Windmeijer2005}
+\[
+  \hat\beta_2-\beta_0 = -A_{\beta_0,W_N(\beta_0)}^{-1}b_{\beta_0,W_N(\beta_0)}
+    + D_{\beta_0,W_N(\beta_0)}\left(\hat\beta_1-\beta_0\right) + \bigO_p(N^{-3/2}),
+\]
+In general $D$'s $j$-th column has three terms \citep[eq.\ 2.3]{Windmeijer2005},
+one of which involves $G(\beta_0)=\partial^2\bar g(\beta)/\partial\beta\partial\beta'|_{\beta_0}$
+and vanishes whenever $C(\beta)=\partial\bar g(\beta)/\partial\beta'$ is
+constant in $\beta$ -- exactly \pkg{}'s case, since its moment conditions are
+\emph{linear} ($g_i(\beta)=Z_i'(Y_i-X_i\beta)$, so
+$C(\beta)=-\frac1N\sum_iZ_i'X_i$ regardless of $\beta$). Writing, for
+brevity,
+\[
+  K_j(\beta_0) \equiv A^{-1}C(\beta_0)'W_N^{-1}(\beta_0)\left.\frac{\partial W_N(\beta)}{\partial\beta_j}\right|_{\beta_0},
+\]
+the two remaining terms give
+\[
+  D_{\cdot j} = -K_j(\beta_0)\,W_N^{-1}(\beta_0)\,C(\beta_0)A^{-1}b_{\beta_0,W_N(\beta_0)}
+    \ +\ K_j(\beta_0)\,W_N^{-1}(\beta_0)\,\bar g(\beta_0).
+\]
+This linear-moment-conditions case is precisely the one
+\citet{Windmeijer2005} shows the correction \emph{unambiguously} improves
+finite-sample accuracy (his eq.\ 3.1--3.2, specialized to a panel AR(1)-type
+model). The corrected variance is
+\begin{equation}
+  \widehat{\mathrm{var}}_c(\hat\beta_2) = V_2 + D\,\widehat{\mathrm{var}}(\hat\beta_1)\,D'
+    + D\,V_2 + V_2\,D'. \label{eq:windmeijer}
+\end{equation}
+\texttt{GMMEngine.estimate\_two\_step\_robust} implements exactly
+\eqref{eq:windmeijer}: \texttt{V1\_robust\_windmeijer} plays the role of
+$\widehat{\mathrm{var}}(\hat\beta_1)$ (the first-step's own sandwich
+variance, accumulated per cluster consistently with clustering elsewhere in
+the engine); \texttt{D\_sum} accumulates
+$\partial W_N(\beta)/\partial\beta_j|_{\hat\beta_1}$'s two-cluster-sum
+components ($-Z_i'X_{i,j}\cdot(Z_i'\hat\varepsilon_1)'$ and its transpose,
+per the linear-moment-condition simplification above); and
+\texttt{V2\_robust} assembles \eqref{eq:windmeijer} directly. This is the
+variance actually reported whenever \texttt{twostep=True, robust=True} --
+the combination most commonly used in applied dynamic-panel work, and the
+only one for which naive two-step inference is known to be seriously
+unreliable.
+
+\subsection{Small-sample degrees-of-freedom corrections}
+\label{sec:qc}
+
+When \texttt{small=True}, \pkg{} rescales variances by finite-sample "qc"
+factors, matching \texttt{xtabond2.mata} lines 562--566 exactly:
+\[
+  V \leftarrow V\times
+  \begin{cases}
+    \dfrac{N_{\mathrm{obs}}}{N_{\mathrm{obs}}-k} & \text{one-step, non-robust}\\[1.4ex]
+    \dfrac{N_{\mathrm{obs}}-1}{N_{\mathrm{obs}}-k}\times q_{\mathrm{cl}} & \text{one-step-robust, two-step (robust or not)}
+  \end{cases}
+\]
+where $k$ is the regressor count (net of the IFE-GMM incidental-parameter
+penalty, Section~\ref{sec:dfpca}), and
+\[
+  q_{\mathrm{cl}} = \begin{cases}
+    1 & \texttt{cluster()} \text{ induces a partition different from the panel id}\\
+    \dfrac{N_{\mathrm{clusters}}}{N_{\mathrm{clusters}}-1} & \text{clustering induces the same partition as the panel id}
+  \end{cases}
+\]
+-- \texttt{GMMEngine.\_cluster\_qc\_factor}. The second case covers both the
+default (no \texttt{cluster()} given, so clustering falls back to the panel
+id) and an explicit \texttt{cluster()} that happens to induce the same
+partition as the panel id (e.g.\ \texttt{cluster(country\_id)} on a panel
+already indexed by \texttt{country\_id}): both leave the moment structure
+identical to the no-\texttt{cluster()} case, so both receive the same
+correction factor. Only a \texttt{cluster()} that genuinely induces a
+different grouping than the panel id drops the factor. This asymmetry
+(Mata's \texttt{rows(clusts)} conditional) is confirmed directly from
+\texttt{xtabond2.mata} line 564. $N_{\mathrm{obs}}$ itself
+is the levels-equation observation count for System GMM (matching Stata's
+own $\mathtt{NObs}$, computed from the levels rows) and the differenced-equation
+count for Difference GMM.
+
+\section{Diagnostic Tests}
+\label{sec:diag}
+
+\subsection{Sargan and Hansen overidentification tests}
+
+The (non-robust) Sargan statistic tests $H_0$: all instruments are valid,
+\[
+  \mathrm{Sargan} = \frac{\hat\varepsilon_1'Z\,W_1\,Z'\hat\varepsilon_1}{\hat\sigma^2}
+    \ \sim\ \chi^2_{\,n_{\mathrm{instr}}-k},
+\]
+valid only under the same homoskedasticity/no-serial-correlation auxiliary
+assumption used to build $W_1$. The Hansen statistic,
+$\hat\varepsilon_2'Z\,W_2\,Z'\hat\varepsilon_2\sim\chi^2_{\,n_{\mathrm{instr}}-k}$,
+is consistent under the actual (possibly heteroskedastic, clustered, serially
+correlated) moment covariance and should be preferred whenever available.
+Both lose power as instruments proliferate \citep{Roodman2009b}: with many
+instruments, both statistics can fail to reject even a misspecified model, so
+a very high $p$-value (e.g.\ $>0.99$) signals over-instrumentation rather
+than validity.
+
+\subsubsection{\texorpdfstring{The error-variance scale $\hat\sigma^2$}{The error-variance scale (sigma-hat squared)}}
+\label{sec:sig2}
+
+\texttt{xtabond2.mata:201} defines \texttt{ErrorEq}, "a dummy for [the]
+equation whose errors to use for $\mathrm{sig2}$ ... transformed eq unless
+$h=1$" -- i.e.\ $\hat\sigma^2$ is computed from the transformed
+(differenced/FOD) equation's residuals when $h>1$, but from the
+\emph{levels}-equation residuals when $h=1$ (consistent with \texttt{h=1}'s
+own assumption that the transformed error itself has no differencing-induced
+structure):
+\[
+  \hat\sigma^2 = \frac{1}{d}\cdot\frac{1}{N_{\text{eq}}}\sum \hat\varepsilon_{1,\text{eq}}^2,
+  \qquad
+  (\text{eq}, d) = \begin{cases}
+    (\text{levels},\ 1) & h=1\\
+    (\text{diff/FOD},\ 1) & \text{FOD}\\
+    (\text{diff},\ 2) & \text{otherwise.}
+  \end{cases}
+\]
+This is exactly \texttt{get\_diagnostics}'s branch on \texttt{self.h}.
+
+\subsection{Difference-in-Sargan/Hansen tests}
+
+Instrument \emph{subset} exogeneity is tested by refitting with that subset
+excluded and comparing overidentification statistics:
+\[
+  \mathrm{Diff} = \mathrm{Stat}_{\mathrm{full}} - \mathrm{Stat}_{\mathrm{restricted}}
+    \ \sim\ \chi^2_{\,n_{\mathrm{instr,full}}-n_{\mathrm{instr,restricted}}}
+\]
+under $H_0$: the excluded subset is valid. \pkg{} tests two subsets
+automatically, mirroring \texttt{xtabond2}: the System GMM "GMM instruments
+for levels" block (identified as the columns that are zero throughout the
+differenced rows and non-constant on the levels rows -- excluding the
+automatically-added constant instrument), and a second block covering all
+\texttt{iv()}/\texttt{iv\_vars} instruments jointly -- every
+standard-instrument variable, across every \texttt{IVStyle} group, tested
+together as a single combined subset rather than group by group.
+\texttt{diagnostics.py}'s \texttt{compute\_diff\_sargan\_tests} refits a
+fresh \texttt{GMMEngine} on the restricted instrument set with
+\texttt{check\_rank=False}
+(the full model was already identification-checked; a diagnostic refit on a
+column \emph{subset} of an already-validated $Z$ does not need a second
+full-$Z$ rank SVD).
+
+\subsection{\texorpdfstring{Arellano-Bond AR($\ell$) tests}{Arellano-Bond AR(l) tests}}
+\label{sec:artests}
+
+The AR($\ell$) test targets $H_0$: no $\ell$-th order serial correlation in
+the \emph{original} idiosyncratic error $\varepsilon$ (not the transformed
+one), using $w_{it}=\hat\varepsilon_{i,t-\ell}$ (the transformed-equation
+residual lagged $\ell$ periods) and the raw moment
+$m_\ell=\sum_{i,t}w_{it}\hat\varepsilon_{it}$. Because $\hat\varepsilon$
+depends on the estimated $\hat\beta$ rather than the truth, a naive variance
+for $m_\ell$ is invalid; the correctly propagated variance (matching
+\texttt{xtabond2.mata::\_ARTests}, implemented in
+\texttt{GMMEngine.get\_diagnostics::compute\_ar}) is
+\[
+  v_\ell = w'Hw + (X'w)'\left[-2VZXA\cdot(Z'Hw) + V_{\mathrm{rob}}\cdot(X'w)\right],
+  \qquad z_\ell = \frac{m_\ell}{\sqrt{v_\ell}}\ \overset{a}{\sim}\ N(0,1),
+\]
+where $VZXA=V\cdot X'Z\cdot W$ is the GMM "bread" and $V_{\mathrm{rob}}$/$V$
+are the (possibly robust) parameter covariance matrices -- the extra terms
+propagate the estimation uncertainty in $\hat\beta$ into the test. By
+construction, $\Delta\varepsilon_{it}=\varepsilon_{it}-\varepsilon_{i,t-1}$
+is first-order correlated \emph{even under the null of no correlation in
+$\varepsilon$} ($\mathrm{Cov}(\Delta\varepsilon_{it},\Delta\varepsilon_{i,t-1})=-\mathrm{Var}(\varepsilon_{i,t-1})\ne0$),
+so \textbf{rejecting AR(1) is the expected, uninformative outcome}; failing
+to reject AR(2) or higher is the actual validity requirement for lag-2+
+instruments (a rejected AR(2) means the original $\varepsilon$ was itself
+serially correlated, invalidating those instruments). \texttt{artests}
+generalizes $\ell$ beyond Stata's hardcoded AR(1)/AR(2) to any
+$\ell=1,\dots,\ell_{\max}$ (set via \texttt{artests}). \texttt{arlevels} redirects the test to the
+\emph{levels}-equation residuals (System GMM only), forcing $H$'s $w'Hw$ term
+to the identity ($h=1$-style) regardless of the model's own \texttt{h} --
+matching \texttt{xtabond2.mata}'s
+\texttt{H = \_H(arlevels?1:h, ...)} -- while the $Z'Hw$ cross-term is
+\emph{not} forced (Mata's \texttt{psit = \_H(h,...)} always uses the actual
+\texttt{h}).
+
+\subsection{\texorpdfstring{Wald/$F$ test}{Wald/F test}}
+
+Joint significance of all regressors uses
+$\mathrm{Wald}=\hat\beta'V^{-1}\hat\beta$ (constant excluded, via a
+pseudo-inverse guarding against near-singular $V$), reported as
+$\mathrm{Wald}/k_{\mathrm{indep}}\sim F_{k_{\mathrm{indep}},\,\mathrm{df}_{\mathrm{resid}}}$
+under \texttt{small=True} or $\mathrm{Wald}\sim\chi^2_{k_{\mathrm{indep}}}$
+otherwise.
+
+\section{IFE-GMM: An Original Extension for Interactive Fixed Effects}
+\label{sec:ife}
+
+\subsection{Motivation}
+
+Sections~\ref{sec:gmm}--\ref{sec:diag} assume $\varepsilon_{it}$ is
+idiosyncratic conditional on $\eta_i$. If the true error instead has an
+\emph{interactive fixed effects} (multifactor) structure,
+\begin{equation}
+  u_{it} = \lambda_i'F_t + \varepsilon_{it}, \label{eq:ife}
+\end{equation}
+with $\lambda_i$ a unit-specific loading on a common, possibly
+time-correlated shock $F_t$ \citep{Bai2009}, and if $F_t$ is correlated with
+the regressors (a common macro shock driving both $x_{it}$ and $y_{it}$,
+for instance), then $\lambda_i'F_t$ acts as an omitted, regressor-correlated
+term that first-differencing/FOD does \emph{not} remove (differencing
+eliminates the time-\emph{invariant} $\eta_i$, not the time-\emph{varying}
+$F_t$). Standard GMM applied to \eqref{eq:model} in the presence of
+\eqref{eq:ife} is therefore inconsistent. Note that \eqref{eq:ife}
+\emph{nests} the additive fixed-effects case as the special case $r=1$,
+$\lambda_i\equiv1$: it is a strict generalization, not a different model
+class \citep[Section 1]{Bai2009}.
+
+\subsection{\texorpdfstring{Identification: the $r^2$ restrictions}{Identification: the r-squared restrictions}}
+\label{sec:identification}
+
+$\Lambda F'=\Lambda AA^{-1}F'$ for any invertible $r\times r$ $A$, so
+$(\Lambda,F)$ is unidentified without normalizing restrictions. Since an
+invertible $r\times r$ matrix has $r^2$ free elements, exactly $r^2$
+restrictions are needed \citep[Section 3.1]{Bai2009}. Two standard sets
+jointly deliver this and uniquely determine $(\Lambda,F)$ given the product
+$\Lambda F'$:
+\[
+  F'F/T = I_r \quad (r(r+1)/2\text{ restrictions, symmetry}),\qquad
+  \Lambda'\Lambda = \text{diagonal} \quad (r(r-1)/2\text{ restrictions}),
+\]
+summing to $r(r+1)/2+r(r-1)/2=r^2$ exactly. \pkg{}'s IFE-GMM loop
+(\texttt{ife.py}) enforces $F'F/T=I_r$ directly by construction (factors are
+extracted as the top-$r$ right singular vectors of the residual matrix,
+rescaled by $\sqrt{T}$: \texttt{F = Vt[:r,:].T * sqrt(n\_times)}), which is
+sufficient for its purposes -- the estimator's target is $\beta$, for which
+only the \emph{column space} of $F$ (not the individual loadings) matters,
+so the $\Lambda'\Lambda$-diagonal restriction is not separately imposed.
+
+\subsection{\texorpdfstring{Defactoring: the projection matrix $M_F$}{Defactoring: the projection matrix M\_F}}
+
+Given $\beta$, the residual $W_i=Y_i-X_i\beta$ follows the pure factor model
+$W_i=F\lambda_i+\varepsilon_i$ \citep[eq.\ 9]{Bai2009}. Concentrating out
+$\Lambda=W'F/T$ from the least-squares objective yields, for a candidate
+$F$, the projection
+\begin{equation}
+  M_F = I_T - F(F'F)^{-1}F' = I_T - FF'/T, \label{eq:mf}
+\end{equation}
+\citep[Section 3.2]{Bai2009} with $M_FW_i=M_F\varepsilon_i$ (the factor
+component is exactly annihilated). $F$ itself is recovered as the top-$r$
+eigenvectors (scaled by $\sqrt T$) of $\sum_iW_iW_i' = WW'$, i.e.\ via SVD of
+the residual matrix -- exactly \texttt{ife.py}'s
+\texttt{U, S, Vt = svd(E\_mat); F = Vt[:r,:].T * sqrt(n\_times)}, and
+\eqref{eq:mf} is exactly \texttt{M\_F = np.eye(n\_times) - (F @ F.T) / n\_times}.
+Bai's own baseline iteration alternates
+$\hat\beta(F,\Lambda)=\left(\sum_iX_i'X_i\right)^{-1}\sum_iX_i'(Y_i-F\lambda_i)$
+(ordinary least squares, given the factor structure) with re-extracting
+$(F,\Lambda)$ from the implied pure-factor residuals.
+
+\subsection{From least squares to profile GMM}
+
+Bai's baseline update for $\beta$ is OLS, valid when $X_{it}$ is (conditional
+on the factors) exogenous. In a \emph{dynamic} panel, $X_{it}$ includes
+$y_{i,t-1}$, mechanically endogenous even after defactoring -- OLS on
+defactored data would reproduce the Nickell-type bias
+(Section~\ref{sec:gmm}) all over again. \citet{HongSuJiang2022} generalize
+Bai's scheme by replacing the OLS update with a GMM update using
+\emph{defactored instruments}: given $F$ (hence $M_F$), project $Y$, $X$,
+\emph{and} $Z$ onto $M_F$'s column space and re-run standard GMM
+(Section~\ref{sec:onetwostep}) on the projected data. They note (their eq.\
+2.8) that substituting the \emph{estimated} loadings $\hat\lambda_i$
+directly into a per-unit defactoring is a tempting "naive" alternative, but
+complicates the asymptotic analysis; their recommended construction (their
+eq.\ 2.9) is instead to defactor with the \emph{projection} $M_F$ applied
+uniformly, exactly as in \eqref{eq:mf} -- precisely \texttt{ife.py}'s choice:
+\texttt{Y\_proj = Y\_mat @ M\_F}, and likewise for every column of $X$ and
+every GMM/IV-instrumented variable, \emph{before} the GMM engine ever sees
+the data for that iteration.
+
+\subsection{The iterative algorithm}
+\label{sec:ifealgo}
+
+\begin{enumerate}[nosep]
+  \item \textbf{Initialize.} $\hat\beta^{(0)}\leftarrow$ plain GMM on the
+    raw (non-defactored) data (Section~\ref{sec:onetwostep}).
+  \item \textbf{Residuals.} $\hat u_{it}^{(m)} = y_{it}-x_{it}'\hat\beta^{(m)}$,
+    reshaped into an $N\times T$ matrix $\hat U^{(m)}$.
+  \item \textbf{Factors.} $F^{(m)}\leftarrow\sqrt{T}\times$(top-$r$ right
+    singular vectors of $\hat U^{(m)}$); $M_F^{(m)}$ via \eqref{eq:mf}.
+  \item \textbf{Project.} $\tilde Y^{(m)}=YM_F^{(m)}$, $\tilde
+    X^{(m)}_{\cdot,j}=X_{\cdot,j}M_F^{(m)}$ for every regressor $j$, and
+    likewise for every GMM-style/IV-style variable feeding the instrument
+    matrix.
+  \item \textbf{Re-estimate.} $\hat\beta^{(m+1)}\leftarrow$ GMM on
+    $(\tilde Y^{(m)},\tilde X^{(m)},\tilde Z^{(m)})$.
+  \item \textbf{Converge?} If $\sum_j|\hat\beta^{(m+1)}_j-\hat\beta^{(m)}_j|<\tau$
+    (\texttt{ife\_tol}, default $10^{-5}$), stop; else repeat from step 2, up to
+    \texttt{ife\_max\_iter} (default 30) iterations.
+\end{enumerate}
+Diagnostics (Section~\ref{sec:diag}) are computed only once, on the final
+converged fit -- they are unnecessary at intermediate iterations, where only
+$\hat\beta^{(m)}$ feeds the next step (an optimization exploited in the
+package's performance work, orthogonal to the econometrics documented here).
+
+\paragraph{Missing panel cells.} $\hat U^{(m)}$ can contain undefined
+entries for two distinct reasons that leave the same kind of hole: a
+genuinely unbalanced panel (an $(i,t)$ observation absent from the data),
+or simply a regressor's lag-truncated first observation per unit (present
+in the data, but with an undefined residual). Rather than a separate
+imputation pass, each such cell is filled from the \emph{previous}
+iteration's own rank-$r$ reconstruction of $\hat U$ -- $U_{\cdot,1:r}\,
+\mathrm{diag}(S_{1:r})\,V_{\cdot,1:r}'$ from that iteration's SVD, or the
+cross-sectional mean on the very first iteration, before any reconstruction
+exists -- before the SVD in step 3 above. The outer loop already
+alternates between a factor-structure estimate and a data reconstruction
+the same way an EM algorithm would, so no nested imputation loop is
+needed. \pkg{} prints a one-time, informational console notice the first
+time this triggers per fit; it does not alter the structure of the
+returned result (Section~\ref{sec:limitations} discusses the caveat this
+raises under heavy missingness).
+
+\subsection{Convergence}
+\label{sec:convergence}
+
+\citet{HongSuJiang2022} prove a \emph{contraction mapping} property for
+exactly the update in Section~\ref{sec:ifealgo}: iterating converges quickly
+to the true $\beta$ \emph{provided the starting value $\hat\beta^{(0)}$ is
+already consistent under interactive fixed effects}. They obtain such a
+starting value via a dedicated nuclear-norm-regularized (NNR) estimator.
+\pkg{}'s loop instead starts from plain, non-defactored GMM
+(Section~\ref{sec:ifealgo}, step 1) -- \emph{not} guaranteed consistent when
+factors are strong, since plain GMM is exactly the estimator IFE-GMM exists
+to correct. Citing the iterative estimator they compare against
+\citep[Jiang et al.\ 2021, as discussed in][]{HongSuJiang2022}: "the
+asymptotic properties of \dots iterative estimators depend on the initial
+estimator, the population structure and the iterative steps, and they may
+not be consistent if the initial estimators are inconsistent." \pkg{} does
+not implement an NNR (or other factor-consistent) starting point; empirical
+convergence should be read as a favourable sign, not a proof of correctness,
+particularly when factor loadings are large relative to $\varepsilon$'s
+scale.
+
+\subsection{Factor-number selection}
+\label{sec:factorselect}
+
+When \texttt{r='auto'} is used, \pkg{}'s factor-count routine
+(\texttt{numfac.estimate\_num\_factors}, a direct port of Stata's
+\texttt{xtnumfac.ado}) computes, from the plain-GMM
+residual matrix $E$ ($N\times T$, or its EM-PCA imputation if unbalanced) and
+its singular values $S_1\ge\dots\ge S_{\min(N,T)}$, $\mu_j=S_j^2/(NT)$:
+
+\paragraph{Bai \& Ng (2002) $IC_{p2}$.} With
+$V(k)=\frac1{NT}\sum_{j>k}\mu_j$ (residual variance after removing $k$
+factors) and $V(0)=\overline{E^2}$,
+\[
+  IC_{p2}(k) = \ln V(k) + k\cdot\frac{N+T}{NT}\ln\big(\min(N,T)\big),
+  \qquad \hat r_{IC} = \arg\min_{k\ge1} IC_{p2}(k).
+\]
+
+\paragraph{Ahn \& Horenstein (2013) eigenvalue ratio (ER).}
+\[
+  ER(k) = \frac{\mu_{k-1}}{\mu_k}\quad(k\ge1),
+  \qquad
+  ER(0) = \frac{V(0)/\ln(\min(N,T))}{\mu_1}\quad(\text{the "\texttt{mockEV}" device}),
+\]
+\[
+  \hat r_{ER}=\arg\max_{k\ge0}\ ER(k).
+\]
+The \texttt{mockEV} term stands in for a "zeroth eigenvalue", the specific
+device that lets $\hat r_{ER}=0$ be a reachable outcome -- concluding "no
+factor structure" -- which $IC_{p2}$ cannot do on its own. \pkg{} reports
+$\hat r_{ER}$ as the default automatic choice (\texttt{fac\_results['best\_er']}),
+alongside $IC_{p2}$ for comparison, matching \texttt{xtnumfac}'s own
+reported preference.
+
+\subsection{Split-panel jackknife bias correction}
+\label{sec:jackknife}
+
+Any estimator with an $\bigO(1/T)$ asymptotic bias term, $\hat\beta(T) =
+\beta_0 + B/T + o_p(1/T)$, can be bias-corrected by exploiting how that bias
+scales with $T$: splitting the sample into two halves of length $T/2$ gives
+$\hat\beta(T/2)=\beta_0+2B/T+o_p(1/T)$ for each half, so
+\[
+  2\hat\beta(T) - \tfrac12\left(\hat\beta_{t\le\bar t}(T/2)+\hat\beta_{t>\bar t}(T/2)\right)
+    = \beta_0 + \left(2\cdot\tfrac{B}{T}-\tfrac12\cdot2\cdot\tfrac{2B}{T}\right) + o_p(1/T)
+    = \beta_0 + o_p(1/T),
+\]
+cancelling the leading bias term exactly -- the classical
+Quenouille/Tukey jackknife idea, applied along the \emph{time} dimension
+(appropriate here since the bias is specifically $\bigO(1/T)$, an
+incidental-parameter-style artifact of estimating $T$-growing factor
+structure alongside $\beta$, not an $\bigO(1/N)$ phenomenon). \citet{DhaeneJochmans2015}
+formalize exactly this split-panel jackknife for fixed-effect models with an
+incidental-parameter bias, with the $g=2$ case of their general
+$g$-way-split estimator (their eq.\ 2.3) being precisely
+\begin{equation}
+  \hat\beta_{\mathrm{BC}} = 2\hat\beta_{\mathrm{full}}
+    - \tfrac12\left(\hat\beta_{t\le\bar t}+\hat\beta_{t>\bar t}\right), \label{eq:jackknife}
+\end{equation}
+matching \texttt{ife.py}'s \texttt{bias\_correction=True} computation
+verbatim, with $\bar t$ the midpoint time period, and each half-panel
+estimate obtained by re-running the \emph{entire} IFE-GMM loop
+(Section~\ref{sec:ifealgo}) on that half, warm-started from the full-panel
+$\hat\beta$ (\texttt{beta\_warm\_start}) to avoid re-solving from a cold
+start on a shorter, noisier sub-panel.
+
+\subsection{Asymptotic theory: variance vs.\ bias}
+\label{sec:asymptotics}
+
+\citet[Theorem 3.4]{HongSuJiang2022} characterize both the asymptotic
+variance and bias of exactly the iterative estimator of
+Section~\ref{sec:ifealgo}. Two results matter directly for \pkg{}'s design:
+
+\begin{enumerate}[nosep]
+  \item The estimator's asymptotic \emph{variance} coincides, to leading
+    order, with plain GMM's variance evaluated at the (unknown) true
+    factors -- no additional term for the sampling uncertainty of the
+    \emph{estimated} factors is needed. This validates \pkg{}'s practice of
+    reporting the plain GMM sandwich/Windmeijer-corrected variance
+    (Section~\ref{sec:windmeijer}) computed on the \emph{converged,
+    projected} data, with no IFE-specific variance adjustment.
+  \item The estimator's asymptotic \emph{bias}, in contrast, has three
+    non-zero terms in general (analogous to Bai's own $B$/$C$ bias terms for
+    the additive-effects incidental-parameter problem), vanishing only under
+    special cases: strictly exogenous instruments, no cross-sectional
+    heteroskedasticity, and no serial correlation/heteroskedasticity in
+    $\varepsilon_{it}$. These do not hold in general dynamic-panel
+    applications (the entire point of instrumenting is to accommodate
+    endogenous/predetermined regressors).
+\end{enumerate}
+Together, these results relocate the practical risk of using IFE-GMM without
+bias correction (i.e.\ leaving \texttt{bias\_correction=True} unset): it is a risk to the
+\emph{point estimate}, not (to leading order) to the reported standard
+error -- exactly the split-panel jackknife of Section~\ref{sec:jackknife}'s
+target. \texttt{bias\_correction=True} is therefore recommended whenever
+point estimates (not just significance tests) are of interest, at roughly
+double the computational cost (two additional half-panel IFE-GMM loops).
+
+\subsection{Incidental-parameter degrees-of-freedom penalty}
+\label{sec:dfpca}
+
+Estimating $r$ factors and $N+T$ loadings/factors alongside $\beta$ consumes
+degrees of freedom beyond $k$ (the regressor count). \pkg{} applies the
+penalty \texttt{df\_pca} $=r(N_{\mathrm{groups}}+T_{\mathrm{span}}-r)$
+wherever Stata's own small-sample corrections subtract $k$
+(Sections~\ref{sec:qc},~\ref{sec:artests}), matching the standard
+incidental-parameter count for \eqref{eq:ife} under the
+Section~\ref{sec:identification} restrictions: $N\times r+T\times r$
+loading/factor elements, less the $r^2$ identifying restrictions -- i.e.\
+exactly the parameter count implied by \citet[p.\ 1235]{Bai2009}'s own
+identification argument, re-derived in Section~\ref{sec:identification}.
+
+\section{Validation Methodology}
+\label{sec:val}
+
+Two independent evidence sources underlie every claim in this note:
+
+\begin{enumerate}[nosep]
+  \item \textbf{Line-by-line audit against \texttt{xtabond2.mata}} (and,
+    for IFE-GMM's factor-selection step, \texttt{xtnumfac.ado}) -- the
+    actual Mata source of Stata's \texttt{xtabond2}/\texttt{xtnumfac}
+    commands (the \texttt{.ado} files are thin dispatch wrappers; all
+    matrix algebra lives in \texttt{.mata}), read directly rather than
+    inferred from documentation.
+  \item \textbf{A real Stata run} of a consolidated do-file, with
+    \texttt{xtabond2} actually installed, comparing its log line-by-line,
+    coefficient-by-coefficient and test-by-test, against a frozen Python
+    reference output (both live in \texttt{stata\_validation/} in the
+    project's development repository -- not necessarily included in every
+    source distribution).
+\end{enumerate}
+A third, complementary safety net -- \texttt{tests/test\_reference\_values.py}'s
+frozen regression fixtures (development repository) -- does not
+independently establish Stata-fidelity (it has no external ground truth)
+but does guarantee that any change to the estimator does
+not silently alter any \emph{other} already-validated computation; every
+change was followed by a full \texttt{pytest} pass before being
+considered complete.
+
+\subsection{Unbalanced panels: validation status}
+\label{sec:unbalanced}
+
+Both the standard GMM engine and IFE-GMM support panels with missing
+$(i,t)$ rows -- interior gaps, late-starting units, and early attrition --
+mirroring \texttt{xtabond2.mata}'s own dense-grid (\texttt{Fill}) handling
+of unbalanced data, rather than requiring the caller to pre-densify the
+panel. Two scenarios were cross-validated against a real Stata run,
+matching to 6 decimal places on every coefficient and standard error: an
+interior gap, and a late-starting individual. The latter was chosen
+specifically because it is the one scenario able to distinguish between
+two readings of the level equation's sample-selection rule -- relative to
+the panel's \emph{global} $t_{\min}$, or to each unit's \emph{own} first
+observed period -- that are indistinguishable on every other validated
+specification (every unit there starts at the panel's global $t_{\min}$).
+The match confirms the already-implemented "global" reading is the one
+Stata itself uses; no change was needed. End-of-panel attrition was
+validated internally (finite, well-posed inference, across all three
+AR-test weighting branches of Section~\ref{sec:artests}) but has not yet
+been independently re-run against Stata for that specific boundary case
+(Section~\ref{sec:limitations}).
+
+\section{Known Limitations}
+\label{sec:limitations}
+
+\begin{description}[nosep]
+  \item[Weights (\texttt{pweight}/\texttt{aweight}/\texttt{fweight})]
+    Not implemented. \texttt{xtabond2.mata} shows weights entering at least
+    four distinct, non-trivial places -- the $W_1$ accumulation, the
+    error-variance scale (via a \texttt{pwe = e1:/sqrt(wt)} device, not a
+    simple pre-multiplication), the two-step "meat", and the AR tests -- and
+    only the first was verified with the same rigor as the rest of this
+    note before the decision was made not to ship a partially-verified
+    feature.
+  \item[\texttt{cluster()}: single variable only] Stata's multi-way
+    \texttt{cluster(var1 var2)} (Cameron-Gelbach-Miller alternating-sum
+    clustering) is out of scope; most macro panels cluster on the panel id
+    itself in any case.
+  \item[\texttt{cluster()} + \texttt{twostep}/\texttt{robust}, instruments
+    $>$ clusters] $S_2$ (eq.~\ref{eq:w2}) becomes exactly rank-deficient
+    (rank $\le N_{\mathrm{clusters}}$). NumPy's Moore-Penrose pseudo-inverse
+    and Mata's \texttt{invsym}-based generalized inverse are both
+    \emph{valid} generalized inverses of a singular matrix, but not
+    numerically the \emph{same} one -- point estimates (not just SE) can
+    diverge from Stata in this specific regime (confirmed: away from it,
+    e.g.\ \texttt{cluster()} on the panel id itself, results match exactly).
+    Mitigation: keep instrument count $\le$ cluster count (e.g.\ via
+    \texttt{collapse=True}) -- the same mitigation Stata's own on-screen
+    warning for this situation implies.
+  \item[\texttt{GMMStyle}/\texttt{IVStyle}] Stata's further
+    \texttt{passthru}, \texttt{mz}, and \texttt{split} suboptions of
+    \texttt{gmm()}/\texttt{iv()} are not implemented.
+  \item[IFE-GMM convergence] Not guaranteed from an inconsistent starting
+    point (Section~\ref{sec:convergence}).
+  \item[IFE-GMM point-estimate bias] Present without
+    \texttt{bias\_correction=True} (Section~\ref{sec:asymptotics}).
+  \item[Unbalanced panels: attrition] Interior gaps and late-starting units
+    are cross-checked against a real Stata run to 6 decimal places
+    (Section~\ref{sec:unbalanced}); end-of-panel attrition is validated
+    internally only (no exception; finite inference across all three
+    AR-test weighting branches) but not yet against an independent Stata
+    run for that specific case.
+  \item[IFE-GMM imputation under heavy missingness] Missing panel cells
+    feeding the defactoring loop (Section~\ref{sec:ifealgo}) are filled
+    from the model's own evolving rank-$r$ reconstruction -- reliable for
+    light-to-moderate missingness, but not independently stress-tested for
+    panels with a large missing fraction, where this circularity could
+    compound the convergence caveat of Section~\ref{sec:convergence}.
+\end{description}
+
+\section{Conclusion}
+
+\pkg{} reproduces Stata's \texttt{xtabond2} matrix algebra and diagnostics
+to the precision demonstrated in Section~\ref{sec:val}, with every
+remaining discrepancy from Stata specifically isolated to two documented,
+narrow regimes (Section~\ref{sec:limitations}) rather than left as an
+unexamined risk. Its original IFE-GMM extension is grounded, term for term,
+in \citet{Bai2009}'s interactive-fixed-effects model,
+\citet{HongSuJiang2022}'s profile-GMM generalization to endogenous
+regressors, and \citet{DhaeneJochmans2015}'s bias correction, with the two
+places its practical implementation departs from the cleanest available
+theory (the starting point for iteration; the default of
+\texttt{bias\_correction=False}) documented as open questions for the user
+to weigh, not settled by fiat. Together with the companion User Manual, this
+note is intended to let a user or reviewer verify any single reported number
+back to its exact econometric source.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

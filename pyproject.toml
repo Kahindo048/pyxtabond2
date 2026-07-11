@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyxtabond2"
+version = "0.0.1"
+description = "Dynamic panel GMM estimation replicating Stata's xtabond2"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{ name = "Frederick Kahindo", email = "frederickahindo048@gmail.com" }]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.21",
+    "pandas>=1.3",
+    "scipy>=1.7",
+    "statsmodels>=0.13",
+    "matplotlib>=3.5",
+    "numba>=0.56",
+]
+keywords = ["econometrics", "gmm", "panel-data", "xtabond2", "arellano-bond"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+export = ["python-docx>=0.8"]
+dev = ["pytest>=7.0"]
+
+[project.urls]
+Homepage = "https://github.com/Kahindo048/pyxtabond2"
+Repository = "https://github.com/Kahindo048/pyxtabond2"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pyxtabond2*"]
+
+[tool.setuptools.package-data]
+pyxtabond2 = ["datasets/*"]
+
+[tool.setuptools]
+license-files = []
