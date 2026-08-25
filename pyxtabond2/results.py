@@ -85,6 +85,14 @@ class PyXtabond2Results:
         self.ci_lower = self.beta - self.ci_crit * self.se
         self.ci_upper = self.beta + self.ci_crit * self.se
 
+    def __repr__(self) -> str:
+        return (f"<PyXtabond2Results: {self.model_name}, {self.step_name}, "
+                f"dep_var='{self.dep_var}', N groups={self.engine.N_groups}, "
+                f"instruments={self.engine.n_instruments}. "
+                f"Call .summary() for coefficients and diagnostic tests.>")
+
+    __str__ = __repr__
+
     def summary(self):
         """
         Displays the estimation results with clear, aligned typography.

@@ -210,6 +210,57 @@ class PanelData:
         times = self.data.index.get_level_values(self.time_col).to_numpy()
         self._time_offsets = (times - times.min()).astype(np.int64)
 
+    def __repr__(self) -> str:
+        n_groups = self.data.index.get_level_values(self.id_col).nunique()
+        times = self.data.index.get_level_values(self.time_col)
+        t_min, t_max = times.min(), times.max()
+        n_obs = len(self.data)
+        max_obs = n_groups * (t_max - t_min + 1) if n_groups else 0
+        balance = "balanced" if n_obs == max_obs else f"unbalanced, {n_obs}/{max_obs} obs"
+        return (f"<PanelData: {n_obs} obs, {n_groups} groups on '{self.id_col}', "
+                f"{self.data.shape[1]} variables, '{self.time_col}' in "
+                f"[{t_min}, {t_max}] ({balance})>")
+
+    __str__ = __repr__
+
+    def summary(self) -> None:
+        """
+        Print a structural summary of the panel: group balance, per-group
+        observation counts, and the variables currently available.
+
+        Complements ``__repr__`` (one line, shown by ``print(panel)``) with
+        the fuller picture needed to sanity-check a panel before fitting
+        (e.g. spotting an unexpectedly unbalanced panel, or a group with
+        very few observations).
+
+        Examples
+        --------
+        >>> panel = PanelData(df, id_col='id', time_col='year')
+        >>> panel.summary()
+        """
+        n_groups = self.data.index.get_level_values(self.id_col).nunique()
+        times = self.data.index.get_level_values(self.time_col)
+        t_min, t_max = times.min(), times.max()
+        n_obs = len(self.data)
+        obs_per_group = self.data.groupby(level=0, sort=False).size()
+        full_length = (t_max - t_min + 1)
+        is_balanced = obs_per_group.nunique() == 1 and obs_per_group.iloc[0] == full_length
+
+        lines = [
+            "=" * 60,
+            "PanelData summary",
+            "=" * 60,
+            f"Panel id        : {self.id_col} ({n_groups} groups)",
+            f"Time variable   : {self.time_col} ({t_min} to {t_max})",
+            f"Observations    : {n_obs}",
+            f"Obs. per group  : min={obs_per_group.min()}, "
+            f"max={obs_per_group.max()}, mean={obs_per_group.mean():.2f}",
+            f"Balanced        : {'Yes' if is_balanced else 'No'}",
+            f"Variables ({self.data.shape[1]}): {', '.join(self.data.columns)}",
+            "=" * 60,
+        ]
+        print("\n".join(lines))
+
     @classmethod
     def rebuild_fast(cls, reference: "PanelData", df_new: pd.DataFrame) -> "PanelData":
         """

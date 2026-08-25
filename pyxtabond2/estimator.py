@@ -201,6 +201,55 @@ class PyXtabond2(IFEMixin):
         self.cluster = cluster
         self.iteration = 0
 
+    def __repr__(self) -> str:
+        step = "two-step" if self.twostep else "one-step"
+        cov = "robust" if self.robust else "classical"
+        r_str = f", r={self.r!r}" if self.r != 0 else ""
+        return (f"<PyXtabond2 (unfitted): {self.model_type} GMM, {step}, {cov}, "
+                f"dep_var='{self.dep_var}', gmm_vars={self.gmm_vars}, "
+                f"iv_vars={self.iv_vars}, collapse={self.collapse}{r_str}. "
+                f"Call .fit() to estimate.>")
+
+    __str__ = __repr__
+
+    def summary(self) -> None:
+        """
+        Print the model specification before fitting: variables, lag
+        limits, and estimation options -- the same information
+        :meth:`~pyxtabond2.results.PyXtabond2Results.summary` reports once
+        the model has actually been estimated, so a spec can be checked
+        before paying for a fit.
+
+        Examples
+        --------
+        >>> model = PyXtabond2(df, id_col='id', time_col='year', dep_var='y',
+        ...                     x_vars=['x1'], gmm_vars=['y'])
+        >>> model.summary()
+        """
+        r_line = f"{self.r}" + (f" (max {self.r_max})" if self.r == 'auto' else "")
+        lines = [
+            "=" * 60,
+            "PyXtabond2 specification (unfitted)",
+            "=" * 60,
+            f"Model type      : {self.model_type}",
+            f"Dependent var   : {self.dep_var}",
+            f"Step            : {'two-step' if self.twostep else 'one-step'}",
+            f"Robust          : {self.robust}",
+            f"Small-sample    : {self.small}",
+            f"Transform       : {'FOD (orthogonal)' if self.orthogonal else 'first differences'}",
+            f"x_vars          : {', '.join(self.x_vars) if self.x_vars else 'None'}",
+            f"GMM-style vars  : {', '.join(self.gmm_vars) if self.gmm_vars else 'None'} "
+            f"(lags {self.lag_limits_diff})",
+            f"IV-style vars   : {', '.join(self.iv_vars) if self.iv_vars else 'None'}",
+            f"Collapse        : {self.collapse}",
+            f"IFE factors (r) : {r_line}",
+            f"Cluster         : {self.cluster or f'panel id ({self.id_col})'}",
+            "=" * 60,
+            "Call .fit() to estimate; the returned PyXtabond2Results object",
+            "has its own .summary() with coefficients and diagnostic tests.",
+        ]
+        print("\n".join(lines))
+
     def fit(self):
         """
         Main method: Routes between Classic GMM and GMM with Interactive Fixed Effects (IFE).
