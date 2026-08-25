@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyxtabond2"
-version = "0.0.1"
+version = "0.0.2"
 description = "Dynamic panel GMM estimation replicating Stata's xtabond2"
 readme = "README.md"
 license = {text = "MIT"}

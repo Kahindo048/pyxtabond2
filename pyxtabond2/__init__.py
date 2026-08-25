@@ -28,7 +28,7 @@ from .exporter import GMMStargazer
 from .load_data import list_datasets, load_dataset
 from .specs import GMMStyle, IVStyle
 
-__version__ = "0.4.1"
+__version__ = "0.0.2"
 __author__ = "Frederick Kahindo"
 
 __all__ = [

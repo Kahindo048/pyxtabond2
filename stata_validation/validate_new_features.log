@@ -1,0 +1,927 @@
+----------------------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  C:\Users\Fred-derick\Desktop\pyxtabond2\stata_validation\validate_new_features.log
+  log type:  text
+ opened on:  25 Aug 2026, 11:07:43
+
+. 
+. capture ssc install xtabond2
+
+. use "pyxtabond2_validation.dta", clear
+
+. xtset country_id Year
+
+Panel variable: country_id (strongly balanced)
+ Time variable: Year, 0 to 9
+         Delta: 1 unit
+
+. 
+. * xtabond2's cluster() option requires Mata's speed-favoring mode; space-favoring
+. * raises r(198) ("cluster() not available in space-favoring mode."). Session-only
+. * (no `perm`), so this script does not alter the user's persistent Mata setting.
+. mata: mata set matafavor speed
+
+. 
+. *-------------------------------------------------------------------------
+. * 1. h(#) -- h=1 vs h=2 vs h=3 (System GMM, one-step, non-robust, default)
+. *-------------------------------------------------------------------------
+. * Python h=1: L1_Growth=0.655754 (se=0.020019)  Capital=1.206416 (se=0.092757)
+. *             AR(1) z=-19.290549 p=0.000000  AR(2) z=1.758433 p=0.078674
+. *             Sargan chi2=123.988643 p=0.002397
+. *             [CONFIRMED vs the Stata run of this case -- matches to reported
+. *             precision after the sig2/ErrorEq fix described above.]
+. di as txt _n "=== 1a. h(1) ==="
+
+=== 1a. h(1) ===
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide) h(1)
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+
+Dynamic panel-data estimation, one-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1800
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         9
+Wald chi2(6)  =   1371.64                                      avg =      9.00
+Prob > chi2   =     0.000                                      max =         9
+------------------------------------------------------------------------------
+      Growth | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .6557538   .0200192    32.76   0.000     .6165168    .6949909
+             |
+     Capital |   1.206416   .0927566    13.01   0.000     1.024616    1.388216
+       Labor |   .0208531   .0947235     0.22   0.826    -.1648016    .2065077
+        Wage |   .0885296   .0777408     1.14   0.255    -.0638394    .2408987
+  Investment |  -.0816082   .0723505    -1.13   0.259    -.2234125    .0601961
+         Ide |    -.01763   .0144134    -1.22   0.221    -.0458798    .0106198
+       _cons |  -.1598347   .4041024    -0.40   0.692    -.9518608    .6321914
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z = -19.29  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   1.76  Pr > z =  0.079
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 123.99  Prob > chi2 =  0.002
+  (Not robust, but not weakened by many instruments.)
+
+Difference-in-Sargan tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Sargan test excluding group:     chi2(67)   =  79.63  Prob > chi2 =  0.139
+    Difference (null H = exogenous): chi2(16)   =  44.36  Prob > chi2 =  0.000
+  iv(Ide)
+    Sargan test excluding group:     chi2(82)   = 117.21  Prob > chi2 =  0.007
+    Difference (null H = exogenous): chi2(1)    =   6.78  Prob > chi2 =  0.009
+
+
+. 
+. * Python h=2: L1_Growth=0.650597 (se=0.013985)  Capital=1.236086 (se=0.098418)
+. *             AR(1) z=-16.027214 p=0.000000  AR(2) z=1.421811 p=0.155081
+. *             Sargan chi2=140.541324 p=0.000082
+. di as txt _n "=== 1b. h(2) ==="
+
+=== 1b. h(2) ===
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide) h(2)
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+
+Dynamic panel-data estimation, one-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1800
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         9
+Wald chi2(6)  =   2703.10                                      avg =      9.00
+Prob > chi2   =     0.000                                      max =         9
+------------------------------------------------------------------------------
+      Growth | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .6505965   .0139852    46.52   0.000     .6231861    .6780069
+             |
+     Capital |   1.236086    .098418    12.56   0.000      1.04319    1.428981
+       Labor |  -.0108605    .083692    -0.13   0.897    -.1748939    .1531729
+        Wage |   .0414842   .0787229     0.53   0.598      -.11281    .1957783
+  Investment |  -.0769854   .0774602    -0.99   0.320    -.2288047    .0748339
+         Ide |  -.0214719   .0155403    -1.38   0.167    -.0519304    .0089865
+       _cons |    .041788   .3716252     0.11   0.910     -.686584    .7701599
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z = -16.03  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   1.42  Pr > z =  0.155
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 140.54  Prob > chi2 =  0.000
+  (Not robust, but not weakened by many instruments.)
+
+Difference-in-Sargan tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Sargan test excluding group:     chi2(67)   =  68.46  Prob > chi2 =  0.428
+    Difference (null H = exogenous): chi2(16)   =  72.08  Prob > chi2 =  0.000
+  iv(Ide)
+    Sargan test excluding group:     chi2(82)   = 138.69  Prob > chi2 =  0.000
+    Difference (null H = exogenous): chi2(1)    =   1.85  Prob > chi2 =  0.174
+
+
+. 
+. * Python h=3 (default): L1_Growth=0.797824 (se=0.010591)  Capital=1.363375 (se=0.108812)
+. *             AR(1) z=-12.099224 p=0.000000  AR(2) z=1.907831 p=0.056413
+. *             Sargan chi2=221.400409 p=0.000000
+. di as txt _n "=== 1c. h(3) (default) ==="
+
+=== 1c. h(3) (default) ===
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide) h(3)
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+
+Dynamic panel-data estimation, one-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1800
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         9
+Wald chi2(6)  =   6469.75                                      avg =      9.00
+Prob > chi2   =     0.000                                      max =         9
+------------------------------------------------------------------------------
+      Growth | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .7978242   .0105909    75.33   0.000     .7770665    .8185819
+             |
+     Capital |   1.363375   .1088121    12.53   0.000     1.150107    1.576642
+       Labor |  -.1529131   .0933016    -1.64   0.101     -.335781    .0299547
+        Wage |  -.0452021   .0850981    -0.53   0.595    -.2119914    .1215872
+  Investment |  -.2205158   .0903246    -2.44   0.015    -.3975488   -.0434829
+         Ide |  -.0366702   .0220817    -1.66   0.097    -.0799496    .0066091
+       _cons |   1.092321   .4169373     2.62   0.009     .2751394    1.909504
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z = -12.10  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   1.91  Pr > z =  0.056
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 221.40  Prob > chi2 =  0.000
+  (Not robust, but not weakened by many instruments.)
+
+Difference-in-Sargan tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Sargan test excluding group:     chi2(67)   =  50.21  Prob > chi2 =  0.938
+    Difference (null H = exogenous): chi2(16)   = 171.20  Prob > chi2 =  0.000
+  iv(Ide)
+    Sargan test excluding group:     chi2(82)   = 221.31  Prob > chi2 =  0.000
+    Difference (null H = exogenous): chi2(1)    =   0.09  Prob > chi2 =  0.761
+
+
+. 
+. *-------------------------------------------------------------------------
+. * 2. artests(#) -- generalized AR(l) up to lag 4 (same spec as h=3 above)
+. *-------------------------------------------------------------------------
+. * Python: AR(1) z=-12.099224 p=0.000000  AR(2) z=1.907831 p=0.056413
+. *         AR(3) z=-0.812647 p=0.416421   AR(4) z=0.474350 p=0.635250
+. di as txt _n "=== 2. artests(4) ==="
+
+=== 2. artests(4) ===
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide) artests(4)
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+
+Dynamic panel-data estimation, one-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1800
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         9
+Wald chi2(6)  =   6469.75                                      avg =      9.00
+Prob > chi2   =     0.000                                      max =         9
+------------------------------------------------------------------------------
+      Growth | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .7978242   .0105909    75.33   0.000     .7770665    .8185819
+             |
+     Capital |   1.363375   .1088121    12.53   0.000     1.150107    1.576642
+       Labor |  -.1529131   .0933016    -1.64   0.101     -.335781    .0299547
+        Wage |  -.0452021   .0850981    -0.53   0.595    -.2119914    .1215872
+  Investment |  -.2205158   .0903246    -2.44   0.015    -.3975488   -.0434829
+         Ide |  -.0366702   .0220817    -1.66   0.097    -.0799496    .0066091
+       _cons |   1.092321   .4169373     2.62   0.009     .2751394    1.909504
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z = -12.10  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   1.91  Pr > z =  0.056
+Arellano-Bond test for AR(3) in first differences: z =  -0.81  Pr > z =  0.416
+Arellano-Bond test for AR(4) in first differences: z =   0.47  Pr > z =  0.635
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 221.40  Prob > chi2 =  0.000
+  (Not robust, but not weakened by many instruments.)
+
+Difference-in-Sargan tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Sargan test excluding group:     chi2(67)   =  50.21  Prob > chi2 =  0.938
+    Difference (null H = exogenous): chi2(16)   = 171.20  Prob > chi2 =  0.000
+  iv(Ide)
+    Sargan test excluding group:     chi2(82)   = 221.31  Prob > chi2 =  0.000
+    Difference (null H = exogenous): chi2(1)    =   0.09  Prob > chi2 =  0.761
+
+
+. 
+. *-------------------------------------------------------------------------
+. * 3. arlevels -- AR(l) tests on the LEVELS-equation residuals (System GMM only)
+. *-------------------------------------------------------------------------
+. * Python: AR(1) z=nan (d<=0, non-positive variance estimate)
+. *         AR(2) z=5.915896 p=0.000000
+. *         [CONFIRMED vs the Stata run of this case: AR(1) is *also* missing
+. *         in Stata's own log (z=. Pr>z=.), i.e. the degenerate case is a real
+. *         shared feature of this specification, not a bug. AR(2) matches
+. *         exactly after fixing the psit cross-term (see note above).]
+. di as txt _n "=== 3. arlevels ==="
+
+=== 3. arlevels ===
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide) arlevels
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+
+Dynamic panel-data estimation, one-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1800
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         9
+Wald chi2(6)  =   6469.75                                      avg =      9.00
+Prob > chi2   =     0.000                                      max =         9
+------------------------------------------------------------------------------
+      Growth | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .7978242   .0105909    75.33   0.000     .7770665    .8185819
+             |
+     Capital |   1.363375   .1088121    12.53   0.000     1.150107    1.576642
+       Labor |  -.1529131   .0933016    -1.64   0.101     -.335781    .0299547
+        Wage |  -.0452021   .0850981    -0.53   0.595    -.2119914    .1215872
+  Investment |  -.2205158   .0903246    -2.44   0.015    -.3975488   -.0434829
+         Ide |  -.0366702   .0220817    -1.66   0.097    -.0799496    .0066091
+       _cons |   1.092321   .4169373     2.62   0.009     .2751394    1.909504
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in levels:            z =      .  Pr > z =      .
+Arellano-Bond test for AR(2) in levels:            z =   5.92  Pr > z =  0.000
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 221.40  Prob > chi2 =  0.000
+  (Not robust, but not weakened by many instruments.)
+
+Difference-in-Sargan tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Sargan test excluding group:     chi2(67)   =  50.21  Prob > chi2 =  0.938
+    Difference (null H = exogenous): chi2(16)   = 171.20  Prob > chi2 =  0.000
+  iv(Ide)
+    Sargan test excluding group:     chi2(82)   = 221.31  Prob > chi2 =  0.000
+    Difference (null H = exogenous): chi2(1)    =   0.09  Prob > chi2 =  0.761
+
+
+. 
+. *-------------------------------------------------------------------------
+. * 4. Per-group gmm() -- different lag/collapse per variable
+. *-------------------------------------------------------------------------
+. * Python: L1_Growth=0.693329 (se=0.015821)  Capital=1.016930 (se=0.153057)
+. *         n_instruments=50  AR(1) z=-8.737335 p=0.000000  AR(2) z=1.851445 p=0.064106
+. *         Sargan chi2=76.809712 p=0.001162
+. di as txt _n "=== 4. gmm(Growth, lag(2 4) collapse) + gmm(Capital, lag(2 .)) ==="
+
+=== 4. gmm(Growth, lag(2 4) collapse) + gmm(Capital, lag(2 .)) ===
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth, lag(2 4) collapse) gmm(Capital, lag(2 .)) iv(Ide)
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+
+Dynamic panel-data estimation, one-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1800
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 50                      Obs per group: min =         9
+Wald chi2(6)  =   2197.71                                      avg =      9.00
+Prob > chi2   =     0.000                                      max =         9
+------------------------------------------------------------------------------
+      Growth | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |    .693329   .0158215    43.82   0.000     .6623195    .7243385
+             |
+     Capital |    1.01693   .1530566     6.64   0.000     .7169443    1.316915
+       Labor |   .0074848   .1429534     0.05   0.958    -.2726989    .2876684
+        Wage |   .0761773   .1228947     0.62   0.535    -.1646919    .3170465
+  Investment |  -.3190534   .1346651    -2.37   0.018    -.5829922   -.0551145
+         Ide |     -.0258   .0235097    -1.10   0.272    -.0718782    .0202781
+       _cons |   .5479213   .5918271     0.93   0.355    -.6120386    1.707881
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).Capital
+    L(2/4).Growth collapsed
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.Capital
+    DL.Growth collapsed
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z =  -8.74  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   1.85  Pr > z =  0.064
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(43)   =  76.81  Prob > chi2 =  0.001
+  (Not robust, but not weakened by many instruments.)
+
+Difference-in-Sargan tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Sargan test excluding group:     chi2(34)   =  39.01  Prob > chi2 =  0.254
+    Difference (null H = exogenous): chi2(9)    =  37.79  Prob > chi2 =  0.000
+  gmm(Growth, collapse lag(2 4))
+    Sargan test excluding group:     chi2(40)   =  43.15  Prob > chi2 =  0.338
+    Difference (null H = exogenous): chi2(3)    =  33.66  Prob > chi2 =  0.000
+  iv(Ide)
+    Sargan test excluding group:     chi2(42)   =  72.67  Prob > chi2 =  0.002
+    Difference (null H = exogenous): chi2(1)    =   4.14  Prob > chi2 =  0.042
+
+
+. 
+. *-------------------------------------------------------------------------
+. * 5. cluster() -- cluster by region_id (20 clusters) instead of country_id (200)
+. *-------------------------------------------------------------------------
+. * Python: L1_Growth=0.618184 (se=0.084294)  Capital=1.296848 (se=0.265196)
+. *         N_clusters=20  AR(1) z=-5.464193 p=0.000000  AR(2) z=1.101418 p=0.270715
+. *         Hansen chi2=10.062570 p=1.000000 (very high p is expected here --
+. *         90 instruments vs only 20 clusters is a severe over-instrumentation
+. *         ratio, a textbook case of the Hansen test being weakened by
+. *         instrument proliferation, per Roodman 2009)
+. *
+. *         SECOND BUG FOUND AND FIXED (SE/AR only, not beta -- the numbers
+. *         above already reflect the fix): xtabond2.mata:564 shows the
+. *         two-step/one-step-robust small-sample correction as
+. *         `onestepnonrobust ? tmp : (rows(clusts) ? (NObs-1)/(NObs-k) :
+. *         (NObs-1)/(NObs-k)*NGroups/(NGroups-1))` -- the NGroups/(NGroups-1)
+. *         cluster-count factor applies ONLY when clustering defaults to the
+. *         panel id (rows(clusts)==0); an explicit cluster() drops it
+. *         entirely. engine.py/estimator.py previously applied this factor
+. *         unconditionally (also when cluster() was explicit), over-correcting
+. *         the variance here by N_clusters/(N_clusters-1) = 20/19 (SE inflated
+. *         by sqrt(20/19) =~1.0260x). Fixed via GMMEngine._cluster_qc_factor
+. *         (returns 1.0 when cluster_ids is not None); the SE ratio old/new
+. *         matches sqrt(20/19) to the precision shown. Distinct from the
+. *         divergence below (beta-level, not SE, and still unresolved).
+. *
+. *         KNOWN, ROOT-CAUSED DIVERGENCE (still unresolved, beta-level): the
+. *         Stata log for this case prints "Two-step estimated covariance
+. *         matrix of moments is singular ... using a generalized inverse" --
+. *         with 90 instruments and only 20 clusters, the moment covariance
+. *         matrix S2 is exactly rank <= 20 (confirmed: its singular values
+. *         drop from ~656 to ~1e-12 between the 20th and 21st, an unambiguous
+. *         rank of 20). pyxtabond2 uses NumPy's Moore-Penrose pseudo-inverse
+. *         there; Stata's Mata `invsym` uses a pivoted-elimination generalized
+. *         inverse that drops specific collinear instrument coordinates
+. *         instead of projecting via SVD -- both are *valid* generalized
+. *         inverses of a singular matrix, but not the *same* one, so point
+. *         estimates (not just SE) can diverge here. Confirmed this is
+. *         specific to the singular regime, not a cluster() bug: cluster(country_id)
+. *         (=200 clusters, matching the default) reproduces the no-cluster-argument
+. *         case exactly (max abs diff = 0.0), and away from this singular case
+. *         S2 is always full rank. Mitigation (same one Stata's own warning
+. *         implies): collapse instruments or otherwise keep instrument count
+. *         <= cluster count when combining twostep/robust with a coarse
+. *         cluster(). Please still confirm the Stata numbers above match what
+. *         your run printed, so we know the diagnosis is exactly this and not
+. *         something else.
+. di as txt _n "=== 5. cluster(region_id), twostep robust small ==="
+
+=== 5. cluster(region_id), twostep robust small ===
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide) twostep robust small cluster(region_id)
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+Warning: Two-step estimated covariance matrix of moments is singular.
+  Using a generalized inverse to calculate optimal weighting matrix for two-step estimation.
+  Difference-in-Sargan/Hansen statistics may be negative.
+
+Dynamic panel-data estimation, two-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1800
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         9
+F(6, 19)      =     72.92                                      avg =      9.00
+Prob > F      =     0.000                                      max =         9
+                              (Std. err. adjusted for clustering on region_id)
+------------------------------------------------------------------------------
+             |              Corrected
+      Growth | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .7104468   .0785321     9.05   0.000     .5460773    .8748164
+             |
+     Capital |   1.358531   .1673443     8.12   0.000     1.008275    1.708787
+       Labor |  -.1000787   .1958521    -0.51   0.615    -.5100019    .3098444
+        Wage |   .1728396   .3069635     0.56   0.580    -.4696424    .8153215
+  Investment |  -.3371109   .3752016    -0.90   0.380    -1.122417     .448195
+         Ide |   -.042481    .044076    -0.96   0.347    -.1347332    .0497712
+       _cons |   .6850697   1.278507     0.54   0.598    -1.990877    3.361017
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z =  -4.28  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   1.91  Pr > z =  0.056
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 221.40  Prob > chi2 =  0.000
+  (Not robust, but not weakened by many instruments.)
+Hansen test of overid. restrictions: chi2(83)   =  14.40  Prob > chi2 =  1.000
+  (Robust, but weakened by many instruments.)
+
+Difference-in-Hansen tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Hansen test excluding group:     chi2(67)   =  13.45  Prob > chi2 =  1.000
+    Difference (null H = exogenous): chi2(16)   =   0.95  Prob > chi2 =  1.000
+  iv(Ide)
+    Hansen test excluding group:     chi2(82)   =  10.35  Prob > chi2 =  1.000
+    Difference (null H = exogenous): chi2(1)    =   4.05  Prob > chi2 =  0.044
+
+
+. 
+. *-------------------------------------------------------------------------
+. * 6. One-step robust, small -- confirms the qc bugfix (api.py one-step-robust
+. *    branch: was N_obs/(N_obs-k), fixed to (N_obs-1)/(N_obs-k) per
+. *    xtabond2.mata:562-566)
+. *-------------------------------------------------------------------------
+. * Python: L1_Growth=0.797824 (se=0.015621)  Capital=1.363375 (se=0.116666)
+. *         AR(1) z=-9.587813 p=0.000000  AR(2) z=2.077840 p=0.037724
+. di as txt _n "=== 6. one-step robust, small (qc bugfix check) ==="
+
+=== 6. one-step robust, small (qc bugfix check) ===
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide) robust small
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+Warning: Two-step estimated covariance matrix of moments is singular.
+  Using a generalized inverse to calculate robust weighting matrix for Hansen test.
+  Difference-in-Sargan/Hansen statistics may be negative.
+
+Dynamic panel-data estimation, one-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1800
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         9
+F(6, 199)     =    492.00                                      avg =      9.00
+Prob > F      =     0.000                                      max =         9
+------------------------------------------------------------------------------
+             |               Robust
+      Growth | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .7978242   .0156212    51.07   0.000     .7670199    .8286285
+             |
+     Capital |   1.363375   .1166658    11.69   0.000     1.133315    1.593435
+       Labor |  -.1529131   .1017189    -1.50   0.134    -.3534984    .0476722
+        Wage |  -.0452021    .097764    -0.46   0.644    -.2379884    .1475842
+  Investment |  -.2205158   .1006338    -2.19   0.030    -.4189613   -.0220704
+         Ide |  -.0366702    .022602    -1.62   0.106    -.0812403    .0078999
+       _cons |   1.092321   .4494243     2.43   0.016     .2060763    1.978567
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z =  -9.59  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   2.08  Pr > z =  0.038
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 221.40  Prob > chi2 =  0.000
+  (Not robust, but not weakened by many instruments.)
+Hansen test of overid. restrictions: chi2(83)   = 127.21  Prob > chi2 =  0.001
+  (Robust, but weakened by many instruments.)
+
+Difference-in-Hansen tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Hansen test excluding group:     chi2(67)   =  54.90  Prob > chi2 =  0.855
+    Difference (null H = exogenous): chi2(16)   =  72.31  Prob > chi2 =  0.000
+  iv(Ide)
+    Hansen test excluding group:     chi2(82)   = 127.05  Prob > chi2 =  0.001
+    Difference (null H = exogenous): chi2(1)    =   0.16  Prob > chi2 =  0.689
+
+
+. 
+. *-------------------------------------------------------------------------
+. * 7. Unbalanced panel -- interior gap (drop country_id==1's Year==5 row)
+. *
+. * Confirms the estimator.py crash fix: before it, ANY missing (id,time) row
+. * (boundary or interior) raised "IndexError: boolean index did not match
+. * indexed array along axis 0" in _fit_base -- unconditionally, for both
+. * model types, with or without IFE-GMM. Also exercises the gap-aware
+. * _lag_group/_diff_group fix in data_utils.py (year 6's D_Growth/D_L1_Growth
+. * become undefined too, since they need year 5's now-absent level value).
+. *-------------------------------------------------------------------------
+. * Python: L1_Growth=0.798186 (se=0.010556)  Capital=1.362369 (se=0.107759)
+. *         _cons=1.076923 (se=0.414699)  AR(1) z=-12.173331 p=0.000000
+. *         AR(2) z=1.900417 p=0.057378  Sargan chi2=223.072381 p=0.000000
+. *         [CONFIRMED vs a real Stata run of this exact do-file: matches
+. *         Stata's L1.=.7981863 (.0105558) Capital=1.362369 (.1077595)
+. *         _cons=1.076923 (.4146986) to 6 decimal places, and AR/Sargan to the
+. *         precision Stata reports. NOTE: getting this match required
+. *         recomputing L1_Growth *after* dropping the row (not reusing the
+. *         precomputed column already in pyxtabond2_validation.dta) --
+. *         reusing the stale, pre-drop value (computed on the full data)
+. *         understates which rows the gap invalidates, since it silently
+. *         keeps referencing the now-absent Year==5 at Year==6's row. This
+. *         matches what Stata's L.Growth does dynamically above, computed
+. *         fresh after `drop if`+`xtset`. See compute_python_reference.py.]
+. di as txt _n "=== 7. Unbalanced: interior gap (country_id==1, Year==5 dropped) ==="
+
+=== 7. Unbalanced: interior gap (country_id==1, Year==5 dropped) ===
+
+. preserve
+
+. drop if country_id == 1 & Year == 5
+(1 observation deleted)
+
+. xtset country_id Year
+
+Panel variable: country_id (unbalanced)
+ Time variable: Year, 0 to 9, but with a gap
+         Delta: 1 unit
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide)
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+
+Dynamic panel-data estimation, one-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1798
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         7
+Wald chi2(6)  =   6507.73                                      avg =      8.99
+Prob > chi2   =     0.000                                      max =         9
+------------------------------------------------------------------------------
+      Growth | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .7981863   .0105558    75.62   0.000     .7774974    .8188752
+             |
+     Capital |   1.362369   .1077595    12.64   0.000     1.151164    1.573573
+       Labor |  -.1450717   .0925281    -1.57   0.117    -.3264236    .0362801
+        Wage |  -.0617674   .0850048    -0.73   0.467    -.2283737    .1048389
+  Investment |  -.2061294    .089954    -2.29   0.022     -.382436   -.0298229
+         Ide |  -.0359326   .0219856    -1.63   0.102    -.0790237    .0071584
+       _cons |   1.076923   .4146986     2.60   0.009     .2641289    1.889718
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z = -12.17  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   1.90  Pr > z =  0.057
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 223.07  Prob > chi2 =  0.000
+  (Not robust, but not weakened by many instruments.)
+
+Difference-in-Sargan tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Sargan test excluding group:     chi2(67)   =  51.13  Prob > chi2 =  0.925
+    Difference (null H = exogenous): chi2(16)   = 171.95  Prob > chi2 =  0.000
+  iv(Ide)
+    Sargan test excluding group:     chi2(82)   = 223.03  Prob > chi2 =  0.000
+    Difference (null H = exogenous): chi2(1)    =   0.04  Prob > chi2 =  0.835
+
+
+. restore
+
+. 
+. *-------------------------------------------------------------------------
+. * 8. Unbalanced panel -- late-starting individual (drop country_id==1's
+. *    Year==0 row, so its own first observed period becomes Year==1)
+. *
+. * Settled an ambiguity the Mata source alone couldn't resolve (see the
+. * comment on mask_level in estimator.py::_fit_base): does the System GMM
+. * level equation exclude the panel's GLOBAL first calendar period for every
+. * individual (regardless of when that individual's own data starts), or
+. * each individual's OWN first observed period specifically? Every other
+. * validated case so far had every individual start at the panel's global
+. * t_min, so the two readings were indistinguishable there. pyxtabond2
+. * implements the GLOBAL reading (mask_level's t_off_g is computed relative
+. * to the panel's global t_min, exactly like mask_diff) -- deliberately left
+. * unchanged by the crash fix pending this exact test.
+. *
+. * RESOLVED: the coefficients below match a real Stata run of this case to
+. * 6 decimal places (see the CONFIRMED note), which would not happen if the
+. * level equation's row-inclusion differed between the two implementations --
+. * directly confirming the GLOBAL reading is correct. No code change needed.
+. *-------------------------------------------------------------------------
+. * Python: L1_Growth=0.793167 (se=0.010819)  Capital=1.386876 (se=0.107577)
+. *         _cons=1.032555 (se=0.415313)  AR(1) z=-12.050835 p=0.000000
+. *         AR(2) z=1.786445 p=0.074027  Sargan chi2=222.754517 p=0.000000
+. *         [CONFIRMED vs a real Stata run of this exact do-file: matches
+. *         Stata's L1.=.7931669 (.0108189) Capital=1.386876 (.1075773)
+. *         _cons=1.032555 (.4153134) to 6 decimal places, and AR/Sargan to
+. *         the precision Stata reports. Same L1_Growth-recompute-after-drop
+. *         note as case 7 applies here.]
+. di as txt _n "=== 8. Unbalanced: late start (country_id==1, Year==0 dropped) ==="
+
+=== 8. Unbalanced: late start (country_id==1, Year==0 dropped) ===
+
+. preserve
+
+. drop if country_id == 1 & Year == 0
+(1 observation deleted)
+
+. xtset country_id Year
+
+Panel variable: country_id (unbalanced)
+ Time variable: Year, 0 to 9
+         Delta: 1 unit
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide)
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+
+Dynamic panel-data estimation, one-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1799
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         8
+Wald chi2(6)  =   6271.06                                      avg =      8.99
+Prob > chi2   =     0.000                                      max =         9
+------------------------------------------------------------------------------
+      Growth | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .7931669   .0108189    73.31   0.000     .7719622    .8143716
+             |
+     Capital |   1.386876   .1075773    12.89   0.000     1.176028    1.597724
+       Labor |  -.1711719   .0919717    -1.86   0.063    -.3514332    .0090893
+        Wage |  -.0404467   .0846059    -0.48   0.633    -.2062711    .1253777
+  Investment |   -.184712   .0898476    -2.06   0.040      -.36081   -.0086139
+         Ide |  -.0366356   .0219216    -1.67   0.095    -.0796012    .0063299
+       _cons |   1.032555   .4153134     2.49   0.013     .2185562    1.846555
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z = -12.05  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   1.79  Pr > z =  0.074
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 222.75  Prob > chi2 =  0.000
+  (Not robust, but not weakened by many instruments.)
+
+Difference-in-Sargan tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Sargan test excluding group:     chi2(67)   =  50.94  Prob > chi2 =  0.928
+    Difference (null H = exogenous): chi2(16)   = 171.81  Prob > chi2 =  0.000
+  iv(Ide)
+    Sargan test excluding group:     chi2(82)   = 222.30  Prob > chi2 =  0.000
+    Difference (null H = exogenous): chi2(1)    =   0.45  Prob > chi2 =  0.502
+
+
+. restore
+
+. 
+. *-------------------------------------------------------------------------
+. * 9. Bug 4 closure -- explicit cluster() at the SAME grouping as the
+. *    default (panel id), away from the singular-S2 regime of Case 5.
+. *
+. * Case 5 (cluster(region_id), 20 clusters vs 90 instruments) sits inside the
+. * singular-moment-matrix regime, so it cannot cleanly isolate the qc-factor
+. * fix (GMMEngine._cluster_qc_factor) from the separate, unresolved
+. * generalized-inverse divergence documented there. This case avoids that
+. * confound entirely: cluster(country_id) has 200 clusters against ~90
+. * instruments (same as the no-cluster() case below), so S2 is always full
+. * rank. The only thing that should differ between 9a and 9b is whether the
+. * small-sample N_clusters/(N_clusters-1) factor is applied:
+. *   - 9a (no cluster(), default clustering by panel id): xtabond2.mata:564's
+. *     rows(clusts)==0 branch applies N_clusters/(N_clusters-1) = 200/199.
+. *   - 9b (explicit cluster(country_id), identical grouping): Mata's
+. *     rows(clusts)!=0 branch drops that factor entirely.
+. * Beta should be IDENTICAL between 9a/9b (same grouping, same moment
+. * matrix); SE should differ by exactly sqrt(199/200) =~ 0.997497 (9b smaller
+. * than 9a). This is precisely the comparison the Methodological Note (Bug 4)
+. * flags as still needed for an independent, non-confounded Stata check.
+. *
+. * Python (from compute_python_reference.py, case 9a/9b):
+. *   9a see PYTHON_9A_PLACEHOLDER -- fill in after running
+. *     compute_python_reference.py, or just diff python_reference_output.txt.
+. *   9b see PYTHON_9B_PLACEHOLDER
+. * Expected: 9a and 9b betas identical; 9a/9b SE ratio = sqrt(199/200) exactly.
+. *-------------------------------------------------------------------------
+. di as txt _n "=== 9a. No cluster() (default = panel id), twostep robust small ==="
+
+=== 9a. No cluster() (default = panel id), twostep robust small ===
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide) twostep robust small
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+Warning: Two-step estimated covariance matrix of moments is singular.
+  Using a generalized inverse to calculate optimal weighting matrix for two-step estimation.
+  Difference-in-Sargan/Hansen statistics may be negative.
+
+Dynamic panel-data estimation, two-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1800
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         9
+F(6, 199)     =    218.66                                      avg =      9.00
+Prob > F      =     0.000                                      max =         9
+------------------------------------------------------------------------------
+             |              Corrected
+      Growth | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .7776835   .0226018    34.41   0.000     .7331138    .8222532
+             |
+     Capital |    1.30871   .1338244     9.78   0.000     1.044814    1.572606
+       Labor |  -.2146825   .1341016    -1.60   0.111     -.479125      .04976
+        Wage |  -.0170129   .1176806    -0.14   0.885    -.2490739    .2150481
+  Investment |   -.196923   .1244524    -1.58   0.115    -.4423377    .0484917
+         Ide |  -.0269748   .0281807    -0.96   0.340    -.0825459    .0285962
+       _cons |   1.101965   .6300042     1.75   0.082    -.1403761    2.344306
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z =  -8.34  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   1.98  Pr > z =  0.048
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 221.40  Prob > chi2 =  0.000
+  (Not robust, but not weakened by many instruments.)
+Hansen test of overid. restrictions: chi2(83)   = 127.21  Prob > chi2 =  0.001
+  (Robust, but weakened by many instruments.)
+
+Difference-in-Hansen tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Hansen test excluding group:     chi2(67)   =  54.90  Prob > chi2 =  0.855
+    Difference (null H = exogenous): chi2(16)   =  72.31  Prob > chi2 =  0.000
+  iv(Ide)
+    Hansen test excluding group:     chi2(82)   = 127.05  Prob > chi2 =  0.001
+    Difference (null H = exogenous): chi2(1)    =   0.16  Prob > chi2 =  0.689
+
+
+. 
+. di as txt _n "=== 9b. cluster(country_id) explicit (same grouping as default), twostep robust small ==="
+
+=== 9b. cluster(country_id) explicit (same grouping as default), twostep robust small ===
+
+. xtabond2 Growth L.Growth Capital Labor Wage Investment Ide, ///
+>     gmm(Growth Capital, lag(2 .)) iv(Ide) twostep robust small cluster(country_id)
+Favoring speed over space. To switch, type or click on mata: mata set matafavor space, perm.
+Warning: Two-step estimated covariance matrix of moments is singular.
+  Using a generalized inverse to calculate optimal weighting matrix for two-step estimation.
+  Difference-in-Sargan/Hansen statistics may be negative.
+
+Dynamic panel-data estimation, two-step system GMM
+------------------------------------------------------------------------------
+Group variable: country_id                      Number of obs      =      1800
+Time variable : Year                            Number of groups   =       200
+Number of instruments = 90                      Obs per group: min =         9
+F(6, 199)     =    218.66                                      avg =      9.00
+Prob > F      =     0.000                                      max =         9
+                             (Std. err. adjusted for clustering on country_id)
+------------------------------------------------------------------------------
+             |              Corrected
+      Growth | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Growth |
+         L1. |   .7776835   .0226018    34.41   0.000     .7331138    .8222532
+             |
+     Capital |    1.30871   .1338244     9.78   0.000     1.044814    1.572606
+       Labor |  -.2146825   .1341016    -1.60   0.111     -.479125      .04976
+        Wage |  -.0170129   .1176806    -0.14   0.885    -.2490739    .2150481
+  Investment |   -.196923   .1244524    -1.58   0.115    -.4423377    .0484917
+         Ide |  -.0269748   .0281807    -0.96   0.340    -.0825459    .0285962
+       _cons |   1.101965   .6300042     1.75   0.082    -.1403761    2.344306
+------------------------------------------------------------------------------
+Instruments for first differences equation
+  Standard
+    D.Ide
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    L(2/9).(Growth Capital)
+Instruments for levels equation
+  Standard
+    Ide
+    _cons
+  GMM-type (missing=0, separate instruments for each period unless collapsed)
+    DL.(Growth Capital)
+------------------------------------------------------------------------------
+Arellano-Bond test for AR(1) in first differences: z =  -8.33  Pr > z =  0.000
+Arellano-Bond test for AR(2) in first differences: z =   1.98  Pr > z =  0.048
+------------------------------------------------------------------------------
+Sargan test of overid. restrictions: chi2(83)   = 221.40  Prob > chi2 =  0.000
+  (Not robust, but not weakened by many instruments.)
+Hansen test of overid. restrictions: chi2(83)   = 126.58  Prob > chi2 =  0.001
+  (Robust, but weakened by many instruments.)
+
+Difference-in-Hansen tests of exogeneity of instrument subsets:
+  GMM instruments for levels
+    Hansen test excluding group:     chi2(67)   =  54.63  Prob > chi2 =  0.861
+    Difference (null H = exogenous): chi2(16)   =  71.95  Prob > chi2 =  0.000
+  iv(Ide)
+    Hansen test excluding group:     chi2(82)   = 126.42  Prob > chi2 =  0.001
+    Difference (null H = exogenous): chi2(1)    =   0.16  Prob > chi2 =  0.690
+
+
+. 
+. log close
+      name:  <unnamed>
+       log:  C:\Users\Fred-derick\Desktop\pyxtabond2\stata_validation\validate_new_features.log
+  log type:  text
+ closed on:  25 Aug 2026, 11:08:10
+----------------------------------------------------------------------------------------------------------------------------------------

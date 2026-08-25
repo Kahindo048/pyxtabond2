@@ -1,0 +1,40 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Numba disk cache
+*.nbc
+*.nbi
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+wheels/
+
+# Test / tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# LaTeX build artifacts (docs/latex/) -- validation logs under stata_validation/
+# are deliberately NOT ignored here: they are replication evidence, not build noise.
+*.aux
+*.bbl
+*.blg
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+docs/latex/*.log

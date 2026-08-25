@@ -116,16 +116,9 @@ def compute_diff_sargan_tests(engine, *, model_type, iv_vars, twostep, robust, s
         n_iv = len(iv_vars)
         iv_mask = np.zeros(engine.Z.shape[1], dtype=bool)
 
-        # IV instruments are always appended contiguously at the end of the
-        # Z matrix. In System GMM, they are followed by one more, auto-
-        # appended '_cons' instrument column -- but ONLY if the user did not
-        # already include '_cons' in iv_vars themselves (estimator.py skips
-        # the auto-append in that case, exactly mirrored here). Assuming the
-        # auto-column unconditionally would silently test the wrong columns
-        # whenever a user instruments the constant explicitly (e.g. Stata's
-        # iv(_cons)).
-        auto_cons_appended = (model_type == 'system') and ('_cons' not in iv_vars)
-        if auto_cons_appended:
+        # IV instruments are always appended at the end of the Z matrix.
+        # In System GMM, the constant is the very last column.
+        if model_type == 'system':
             iv_mask[-(n_iv + 1):-1] = True
         else:
             iv_mask[-n_iv:] = True

@@ -1,0 +1,160 @@
+=== 1. h=1 ===
+  L1_Growth    beta= 0.655754  se=0.020019
+  Capital      beta= 1.206416  se=0.092757
+  Labor        beta= 0.020853  se=0.094723
+  Wage         beta= 0.088530  se=0.077741
+  Investment   beta=-0.081608  se=0.072350
+  Ide          beta=-0.017630  se=0.014413
+  _cons        beta=-0.159835  se=0.404102
+  n_obs=3400  n_groups=200  n_instruments=90  N_clusters=200
+  AR(1): z=-19.290549  p=0.000000
+  AR(2): z=1.758433  p=0.078674
+  Sargan: chi2=123.988643  p=0.002397
+
+=== 1. h=2 ===
+  L1_Growth    beta= 0.650597  se=0.013985
+  Capital      beta= 1.236086  se=0.098418
+  Labor        beta=-0.010860  se=0.083692
+  Wage         beta= 0.041484  se=0.078723
+  Investment   beta=-0.076985  se=0.077460
+  Ide          beta=-0.021472  se=0.015540
+  _cons        beta= 0.041788  se=0.371625
+  n_obs=3400  n_groups=200  n_instruments=90  N_clusters=200
+  AR(1): z=-16.027214  p=0.000000
+  AR(2): z=1.421811  p=0.155081
+  Sargan: chi2=140.541324  p=0.000082
+
+=== 1. h=3 ===
+  L1_Growth    beta= 0.797824  se=0.010591
+  Capital      beta= 1.363375  se=0.108812
+  Labor        beta=-0.152913  se=0.093302
+  Wage         beta=-0.045202  se=0.085098
+  Investment   beta=-0.220516  se=0.090325
+  Ide          beta=-0.036670  se=0.022082
+  _cons        beta= 1.092321  se=0.416937
+  n_obs=3400  n_groups=200  n_instruments=90  N_clusters=200
+  AR(1): z=-12.099224  p=0.000000
+  AR(2): z=1.907831  p=0.056413
+  Sargan: chi2=221.400409  p=0.000000
+
+=== 2. artests=4 ===
+  L1_Growth    beta= 0.797824  se=0.010591
+  Capital      beta= 1.363375  se=0.108812
+  Labor        beta=-0.152913  se=0.093302
+  Wage         beta=-0.045202  se=0.085098
+  Investment   beta=-0.220516  se=0.090325
+  Ide          beta=-0.036670  se=0.022082
+  _cons        beta= 1.092321  se=0.416937
+  n_obs=3400  n_groups=200  n_instruments=90  N_clusters=200
+  AR(1): z=-12.099224  p=0.000000
+  AR(2): z=1.907831  p=0.056413
+  AR(3): z=-0.812647  p=0.416421
+  AR(4): z=0.474350  p=0.635250
+  Sargan: chi2=221.400409  p=0.000000
+
+=== 3. arlevels ===
+  L1_Growth    beta= 0.797824  se=0.010591
+  Capital      beta= 1.363375  se=0.108812
+  Labor        beta=-0.152913  se=0.093302
+  Wage         beta=-0.045202  se=0.085098
+  Investment   beta=-0.220516  se=0.090325
+  Ide          beta=-0.036670  se=0.022082
+  _cons        beta= 1.092321  se=0.416937
+  n_obs=3400  n_groups=200  n_instruments=90  N_clusters=200
+  AR(1): z=nan  p=nan
+  AR(2): z=5.915896  p=0.000000
+  Sargan: chi2=221.400409  p=0.000000
+
+=== 4. gmm(Growth, lag(2 4) collapse) + gmm(Capital, lag(2 .)) ===
+  L1_Growth    beta= 0.693329  se=0.015821
+  Capital      beta= 1.016930  se=0.153057
+  Labor        beta= 0.007485  se=0.142953
+  Wage         beta= 0.076177  se=0.122895
+  Investment   beta=-0.319053  se=0.134665
+  Ide          beta=-0.025800  se=0.023510
+  _cons        beta= 0.547921  se=0.591827
+  n_obs=3400  n_groups=200  n_instruments=50  N_clusters=200
+  AR(1): z=-8.737335  p=0.000000
+  AR(2): z=1.851445  p=0.064106
+  Sargan: chi2=76.809712  p=0.001162
+
+=== 5. cluster(region_id), twostep robust small ===
+  L1_Growth    beta= 0.618184  se=0.084294
+  Capital      beta= 1.296848  se=0.265196
+  Labor        beta=-0.117391  se=0.375801
+  Wage         beta= 0.101927  se=0.319413
+  Investment   beta=-0.077878  se=0.366890
+  Ide          beta=-0.007638  se=0.059564
+  _cons        beta= 0.116293  se=2.148760
+  n_obs=3400  n_groups=200  n_instruments=90  N_clusters=20
+  AR(1): z=-5.464193  p=0.000000
+  AR(2): z=1.101418  p=0.270715
+  Sargan: chi2=221.400409  p=0.000000
+  Hansen: chi2=10.062570  p=1.000000
+
+=== 6. one-step robust small (qc bugfix) ===
+  L1_Growth    beta= 0.797824  se=0.015621
+  Capital      beta= 1.363375  se=0.116666
+  Labor        beta=-0.152913  se=0.101719
+  Wage         beta=-0.045202  se=0.097764
+  Investment   beta=-0.220516  se=0.100634
+  Ide          beta=-0.036670  se=0.022602
+  _cons        beta= 1.092321  se=0.449424
+  n_obs=3400  n_groups=200  n_instruments=90  N_clusters=200
+  AR(1): z=-9.587813  p=0.000000
+  AR(2): z=2.077840  p=0.037724
+  Sargan: chi2=221.400409  p=0.000000
+
+=== 7. unbalanced interior gap (country_id==1, Year==5 dropped) ===
+  L1_Growth    beta= 0.798186  se=0.010556
+  Capital      beta= 1.362369  se=0.107759
+  Labor        beta=-0.145072  se=0.092528
+  Wage         beta=-0.061767  se=0.085005
+  Investment   beta=-0.206129  se=0.089954
+  Ide          beta=-0.035933  se=0.021986
+  _cons        beta= 1.076923  se=0.414699
+  n_obs=3395  n_groups=200  n_instruments=90  N_clusters=200
+  AR(1): z=-12.173331  p=0.000000
+  AR(2): z=1.900417  p=0.057378
+  Sargan: chi2=223.072381  p=0.000000
+
+=== 8. unbalanced late start (country_id==1, Year==0 dropped) ===
+  L1_Growth    beta= 0.793167  se=0.010819
+  Capital      beta= 1.386876  se=0.107577
+  Labor        beta=-0.171172  se=0.091972
+  Wage         beta=-0.040447  se=0.084606
+  Investment   beta=-0.184712  se=0.089848
+  Ide          beta=-0.036636  se=0.021922
+  _cons        beta= 1.032555  se=0.415313
+  n_obs=3398  n_groups=200  n_instruments=90  N_clusters=200
+  AR(1): z=-12.050835  p=0.000000
+  AR(2): z=1.786445  p=0.074027
+  Sargan: chi2=222.754517  p=0.000000
+
+=== 9a. No cluster() (default = panel id), twostep robust small ===
+  L1_Growth    beta= 0.777684  se=0.022602
+  Capital      beta= 1.308710  se=0.133824
+  Labor        beta=-0.214682  se=0.134102
+  Wage         beta=-0.017013  se=0.117681
+  Investment   beta=-0.196923  se=0.124452
+  Ide          beta=-0.026975  se=0.028181
+  _cons        beta= 1.101965  se=0.630004
+  n_obs=3400  n_groups=200  n_instruments=90  N_clusters=200
+  AR(1): z=-8.340822  p=0.000000
+  AR(2): z=1.978231  p=0.047903
+  Sargan: chi2=221.400409  p=0.000000
+  Hansen: chi2=127.213364  p=0.001301
+
+=== 9b. cluster(country_id) explicit (same grouping as default), twostep robust small ===
+  L1_Growth    beta= 0.777684  se=0.022602
+  Capital      beta= 1.308710  se=0.133824
+  Labor        beta=-0.214682  se=0.134102
+  Wage         beta=-0.017013  se=0.117681
+  Investment   beta=-0.196923  se=0.124452
+  Ide          beta=-0.026975  se=0.028181
+  _cons        beta= 1.101965  se=0.630004
+  n_obs=3400  n_groups=200  n_instruments=90  N_clusters=200
+  AR(1): z=-8.340822  p=0.000000
+  AR(2): z=1.978231  p=0.047903
+  Sargan: chi2=221.400409  p=0.000000
+  Hansen: chi2=127.213364  p=0.001301
